@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#10151a">
+<title>Bike share TO — e-bikes</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #10151a;
+  }
+  body {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+</style>
+</head>
+<body>
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Live e-bike availability board for chosen Bike Share Toronto stations, auto-refreshing every 25 seconds</h2>
+<style>
+  #board-root {
+    --board-bg: #10151a;
+    --board-panel: #171e25;
+    --board-line: #2a333c;
+    --board-amber: #ffb200;
+    --board-amber-dim: #7a5900;
+    --board-green: #3ddc84;
+    --board-red: #ff5c5c;
+    --board-text: #d7dee4;
+    --board-text-dim: #7c8894;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--board-bg);
+    color: var(--board-text);
+    border-radius: 0;
+    padding: 1rem;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+  @media (min-width: 480px) {
+    #board-root { border-radius: 14px; padding: 1.25rem; min-height: 0; margin: 1rem auto; }
+  }
+  #board-root .mono {
+    font-family: 'Courier New', ui-monospace, Menlo, monospace;
+  }
+  #board-root .head-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  #board-root .title {
+    font-size: 13.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--board-text);
+  }
+  @media (min-width: 480px) {
+    #board-root .title { font-size: 15px; letter-spacing: 0.06em; }
+  }
+  #board-root .clock {
+    font-size: 12px;
+    color: var(--board-text-dim);
+  }
+  #board-root .sub {
+    font-size: 12px;
+    color: var(--board-text-dim);
+    margin-bottom: 14px;
+  }
+  #board-root .search-wrap {
+    position: relative;
+    margin-bottom: 14px;
+  }
+  #board-root input[type=text] {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--board-panel);
+    border: 1px solid var(--board-line);
+    color: var(--board-text);
+    font-size: 16px;
+    padding: 12px 12px;
+    border-radius: 8px;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  #board-root input[type=text]:focus {
+    border-color: var(--board-amber-dim);
+  }
+  #board-root .suggest {
+    position: absolute;
+    top: 42px;
+    left: 0;
+    right: 0;
+    background: var(--board-panel);
+    border: 1px solid var(--board-line);
+    border-radius: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 5;
+  }
+  #board-root .suggest-item {
+    padding: 12px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--board-line);
+  }
+  #board-root .suggest-item:last-child { border-bottom: none; }
+  #board-root .suggest-item:hover { background: #1e262e; }
+  #board-root .suggest-item .snum { color: var(--board-text-dim); margin-left: 6px; font-size: 11px; }
+  #board-root .row {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto 32px;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--board-line);
+  }
+  @media (min-width: 480px) {
+    #board-root .row { gap: 14px; padding: 12px 10px; }
+  }
+  #board-root .row:last-child { border-bottom: none; }
+  #board-root .name {
+    font-size: 12.5px;
+    color: var(--board-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  @media (min-width: 480px) {
+    #board-root .name { font-size: 13px; }
+  }
+  #board-root .metric { text-align: right; min-width: 34px; }
+  #board-root .metric .num {
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  @media (min-width: 480px) {
+    #board-root .metric { min-width: 46px; }
+    #board-root .metric .num { font-size: 22px; }
+  }
+  #board-root .metric .lbl {
+    font-size: 8.5px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--board-text-dim);
+    margin-top: 2px;
+  }
+  #board-root .num.amber { color: var(--board-amber); }
+  #board-root .num.dim { color: var(--board-text-dim); font-size: 14px; font-weight: 500; }
+  @media (min-width: 480px) {
+    #board-root .num.dim { font-size: 16px; }
+  }
+  #board-root .num.zero { color: var(--board-red); }
+  #board-root .remove-btn {
+    background: none;
+    border: none;
+    color: var(--board-text-dim);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  #board-root .remove-btn:hover { color: var(--board-red); }
+  #board-root .empty {
+    text-align: center;
+    padding: 30px 10px;
+    color: var(--board-text-dim);
+    font-size: 13px;
+  }
+  #board-root .footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--board-text-dim);
+  }
+  #board-root .status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--board-green);
+    margin-right: 5px;
+  }
+</style>
+
+<div id="board-root">
+  <div class="head-row">
+    <span class="title">Bike share TO — e-bikes</span>
+    <span class="clock mono" id="clock">--:--:--</span>
+  </div>
+  <div class="sub">Live from the GBFS feed. Search once to pin a station; it stays here after that.</div>
+
+  <div class="search-wrap">
+    <input type="text" id="search" placeholder="Search a station name..." autocomplete="off" />
+    <div class="suggest" id="suggest" style="display:none;"></div>
+  </div>
+
+  <div id="rows"></div>
+  <div class="empty" id="empty" style="display:none;">No stations pinned yet. Search above to add one.</div>
+
+  <div class="footer">
+    <span><span class="status-dot" id="status-dot"></span><span id="status-text">connecting…</span></span>
+    <span id="updated-text">—</span>
+  </div>
+</div>
+
+<script>
+(function() {
+  var STATION_INFO_URL = 'https://tor.publicbikesystem.net/ube/gbfs/v1/en/station_information';
+  var STATION_STATUS_URL = 'https://tor.publicbikesystem.net/ube/gbfs/v1/en/station_status';
+  var FAV_KEY = 'ebike-board-favorites';
+  var INFO_CACHE_KEY = 'ebike-board-station-info-cache';
+  var INFO_MAX_AGE_MS = 1000 * 60 * 60 * 12;
+
+  var stationsById = {};
+  var favorites = [];
+  var lastStatusFetch = 0;
+
+  var elRows = document.getElementById('rows');
+  var elEmpty = document.getElementById('empty');
+  var elSearch = document.getElementById('search');
+  var elSuggest = document.getElementById('suggest');
+  var elClock = document.getElementById('clock');
+  var elStatusDot = document.getElementById('status-dot');
+  var elStatusText = document.getElementById('status-text');
+  var elUpdatedText = document.getElementById('updated-text');
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function tickClock() {
+    var d = new Date();
+    elClock.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    if (lastStatusFetch) {
+      var secs = Math.round((Date.now() - lastStatusFetch) / 1000);
+      elUpdatedText.textContent = 'updated ' + secs + 's ago';
+    }
+  }
+
+  async function loadFavorites() {
+    try {
+      var res = await window.storage.get(FAV_KEY, false);
+      favorites = res && res.value ? JSON.parse(res.value) : [];
+    } catch (e) {
+      favorites = [];
+    }
+  }
+
+  async function saveFavorites() {
+    try {
+      await window.storage.set(FAV_KEY, JSON.stringify(favorites), false);
+    } catch (e) {}
+  }
+
+  async function loadStationInfo() {
+    var cached = null;
+    try {
+      var res = await window.storage.get(INFO_CACHE_KEY, false);
+      if (res && res.value) cached = JSON.parse(res.value);
+    } catch (e) {}
+
+    if (cached && cached.fetchedAt && (Date.now() - cached.fetchedAt) < INFO_MAX_AGE_MS) {
+      applyStationInfo(cached.stations);
+      return;
+    }
+
+    try {
+      var resp = await fetch(STATION_INFO_URL);
+      var data = await resp.json();
+      var stations = data.data.stations;
+      applyStationInfo(stations);
+      try {
+        await window.storage.set(INFO_CACHE_KEY, JSON.stringify({ fetchedAt: Date.now(), stations: stations }), false);
+      } catch (e) {}
+    } catch (e) {
+      if (cached && cached.stations) applyStationInfo(cached.stations);
+    }
+  }
+
+  function applyStationInfo(stations) {
+    stationsById = {};
+    for (var i = 0; i < stations.length; i++) {
+      var s = stations[i];
+      stationsById[s.station_id] = {
+        id: s.station_id,
+        name: s.name,
+        num: s.short_name || '',
+        ebikes: null,
+        mechanical: null,
+        docks: null
+      };
+    }
+  }
+
+  async function refreshStatus() {
+    try {
+      var resp = await fetch(STATION_STATUS_URL);
+      var data = await resp.json();
+      var list = data.data.stations;
+      for (var i = 0; i < list.length; i++) {
+        var s = list[i];
+        var st = stationsById[s.station_id];
+        if (!st) continue;
+        var types = s.num_bikes_available_types || {};
+        st.ebikes = typeof types.ebike === 'number' ? types.ebike : 0;
+        st.mechanical = typeof types.mechanical === 'number' ? types.mechanical : (s.num_bikes_available || 0);
+        st.docks = s.num_docks_available;
+      }
+      lastStatusFetch = Date.now();
+      elStatusDot.style.background = 'var(--board-green)';
+      elStatusText.textContent = 'live';
+    } catch (e) {
+      elStatusDot.style.background = 'var(--board-red)';
+      elStatusText.textContent = 'connection issue, retrying';
+    }
+    render();
+  }
+
+  function render() {
+    elRows.innerHTML = '';
+    if (favorites.length === 0) {
+      elEmpty.style.display = 'block';
+      return;
+    }
+    elEmpty.style.display = 'none';
+
+    for (var i = 0; i < favorites.length; i++) {
+      var id = favorites[i];
+      var st = stationsById[id];
+      if (!st) continue;
+
+      var row = document.createElement('div');
+      row.className = 'row';
+
+      var name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = st.name;
+      row.appendChild(name);
+
+      row.appendChild(metricEl(st.ebikes, 'ebikes', true));
+      row.appendChild(metricEl(st.mechanical, 'pedal', false));
+      row.appendChild(metricEl(st.docks, 'docks', false));
+
+      var btn = document.createElement('button');
+      btn.className = 'remove-btn';
+      btn.setAttribute('aria-label', 'Remove ' + st.name);
+      btn.textContent = '\u00d7';
+      btn.addEventListener('click', function(stationId) {
+        return function() {
+          favorites = favorites.filter(function(f) { return f !== stationId; });
+          saveFavorites();
+          render();
+        };
+      }(id));
+      row.appendChild(btn);
+
+      elRows.appendChild(row);
+    }
+  }
+
+  function metricEl(value, label, isEbike) {
+    var wrap = document.createElement('div');
+    wrap.className = 'metric';
+    var num = document.createElement('div');
+    var v = (value === null || value === undefined) ? '--' : value;
+    num.className = 'num mono' + (isEbike ? (v === 0 ? ' zero' : ' amber') : ' dim');
+    num.textContent = v;
+    var lbl = document.createElement('div');
+    lbl.className = 'lbl';
+    lbl.textContent = label;
+    wrap.appendChild(num);
+    wrap.appendChild(lbl);
+    return wrap;
+  }
+
+  function doSearch(q) {
+    q = q.trim().toLowerCase();
+    elSuggest.innerHTML = '';
+    if (!q) { elSuggest.style.display = 'none'; return; }
+
+    var matches = [];
+    for (var id in stationsById) {
+      var s = stationsById[id];
+      if (favorites.indexOf(id) !== -1) continue;
+      if (s.name.toLowerCase().indexOf(q) !== -1) matches.push(s);
+      if (matches.length >= 8) break;
+    }
+
+    if (matches.length === 0) {
+      elSuggest.style.display = 'none';
+      return;
+    }
+
+    for (var i = 0; i < matches.length; i++) {
+      (function(s) {
+        var item = document.createElement('div');
+        item.className = 'suggest-item';
+        item.textContent = s.name;
+        var num = document.createElement('span');
+        num.className = 'snum';
+        num.textContent = s.num ? '#' + s.num : '';
+        item.appendChild(num);
+        item.addEventListener('click', function() {
+          favorites.push(s.id);
+          saveFavorites();
+          elSearch.value = '';
+          elSuggest.style.display = 'none';
+          render();
+        });
+        elSuggest.appendChild(item);
+      })(matches[i]);
+    }
+    elSuggest.style.display = 'block';
+  }
+
+  elSearch.addEventListener('input', function() { doSearch(elSearch.value); });
+  elSearch.addEventListener('focus', function() { if (elSearch.value) doSearch(elSearch.value); });
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('#board-root .search-wrap')) elSuggest.style.display = 'none';
+  });
+
+  async function init() {
+    await loadFavorites();
+    await loadStationInfo();
+    render();
+    await refreshStatus();
+    setInterval(refreshStatus, 25000);
+    setInterval(tickClock, 1000);
+    tickClock();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
