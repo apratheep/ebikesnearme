@@ -252,8 +252,8 @@
 
   async function loadFavorites() {
     try {
-      var res = await window.storage.get(FAV_KEY, false);
-      favorites = res && res.value ? JSON.parse(res.value) : [];
+      var raw = localStorage.getItem(FAV_KEY);
+      favorites = raw ? JSON.parse(raw) : [];
     } catch (e) {
       favorites = [];
     }
@@ -261,15 +261,15 @@
 
   async function saveFavorites() {
     try {
-      await window.storage.set(FAV_KEY, JSON.stringify(favorites), false);
+      localStorage.setItem(FAV_KEY, JSON.stringify(favorites));
     } catch (e) {}
   }
 
   async function loadStationInfo() {
     var cached = null;
     try {
-      var res = await window.storage.get(INFO_CACHE_KEY, false);
-      if (res && res.value) cached = JSON.parse(res.value);
+      var raw = localStorage.getItem(INFO_CACHE_KEY);
+      if (raw) cached = JSON.parse(raw);
     } catch (e) {}
 
     if (cached && cached.fetchedAt && (Date.now() - cached.fetchedAt) < INFO_MAX_AGE_MS) {
@@ -283,7 +283,7 @@
       var stations = data.data.stations;
       applyStationInfo(stations);
       try {
-        await window.storage.set(INFO_CACHE_KEY, JSON.stringify({ fetchedAt: Date.now(), stations: stations }), false);
+        localStorage.setItem(INFO_CACHE_KEY, JSON.stringify({ fetchedAt: Date.now(), stations: stations }));
       } catch (e) {}
     } catch (e) {
       if (cached && cached.stations) applyStationInfo(cached.stations);
