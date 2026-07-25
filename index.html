@@ -202,15 +202,19 @@
     <span class="title">Bike share TO — e-bikes</span>
     <span class="clock mono" id="clock">--:--:--</span>
   </div>
-  <div class="sub">Live from the GBFS feed. Search once to pin a station; it stays here after that.</div>
+  <div class="sub">Live from the GBFS feed. Auto-fills your 8 nearest stations on first open.</div>
 
   <div class="search-wrap">
-    <input type="text" id="search" placeholder="Search a station name..." autocomplete="off" />
+    <input type="text" id="search" placeholder="Or search a station name..." autocomplete="off" />
     <div class="suggest" id="suggest" style="display:none;"></div>
   </div>
 
+  <button id="nearest-btn" type="button" style="width:100%;background:#171e25;border:1px solid #2a333c;color:#d7dee4;font-size:13px;padding:10px;border-radius:8px;margin-bottom:14px;cursor:pointer;">
+    📍 Use my location for 8 nearest
+  </button>
+
   <div id="rows"></div>
-  <div class="empty" id="empty" style="display:none;">No stations pinned yet. Search above to add one.</div>
+  <div class="empty" id="empty" style="display:none;">No stations pinned yet. Tap "Use my location" or search above.</div>
 
   <div class="footer">
     <span><span class="status-dot" id="status-dot"></span><span id="status-text">connecting…</span></span>
@@ -240,6 +244,50 @@
   var elUpdatedText = document.getElementById('updated-text');
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function distanceKm(lat1, lon1, lat2, lon2) {
+    var R = 6371;
+    var dLat = (lat2 - lat1) * Math.PI / 180;
+    var dLon = (lon2 - lon1) * Math.PI / 180;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      alert('Location isn\'t available in this browser.');
+      return;
+    }
+    var btn = document.getElementById('nearest-btn');
+    var originalLabel = btn.textContent;
+    btn.textContent = 'Finding nearby stations…';
+    btn.disabled = true;
+
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      var lat = pos.coords.latitude;
+      var lon = pos.coords.longitude;
+      var withDist = [];
+      for (var id in stationsById) {
+        var s = stationsById[id];
+        if (typeof s.lat === 'number' && typeof s.lon === 'number') {
+          withDist.push({ id: id, d: distanceKm(lat, lon, s.lat, s.lon) });
+        }
+      }
+      withDist.sort(function(a, b) { return a.d - b.d; });
+      favorites = withDist.slice(0, 8).map(function(x) { return x.id; });
+      saveFavorites();
+      render();
+      btn.textContent = originalLabel;
+      btn.disabled = false;
+    }, function(err) {
+      btn.textContent = originalLabel;
+      btn.disabled = false;
+      alert('Couldn\'t get your location. You can still search for stations manually above.');
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+  }
 
   function tickClock() {
     var d = new Date();
@@ -298,6 +346,8 @@
         id: s.station_id,
         name: s.name,
         num: s.short_name || '',
+        lat: s.lat,
+        lon: s.lon,
         ebikes: null,
         mechanical: null,
         docks: null
@@ -432,11 +482,15 @@
     if (!e.target.closest('#board-root .search-wrap')) elSuggest.style.display = 'none';
   });
 
+  document.getElementById('nearest-btn').addEventListener('click', useMyLocation);
+
   async function init() {
     await loadFavorites();
     await loadStationInfo();
+    var isFirstOpen = favorites.length === 0 && !localStorage.getItem(FAV_KEY);
     render();
     await refreshStatus();
+    if (isFirstOpen) useMyLocation();
     setInterval(refreshStatus, 25000);
     setInterval(tickClock, 1000);
     tickClock();
