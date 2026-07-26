@@ -98,16 +98,20 @@
   #board-root .stat-row:last-child { border-bottom: none; }
   #board-root .stat-name {
     font-size: 11px;
-    line-height: 1.25;
+    line-height: 1.3;
     color: var(--board-text);
     flex: 1;
     min-width: 0;
-    white-space: normal;
-    word-break: break-word;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    display: flex;
+    flex-direction: column;
+  }
+  #board-root .stat-name .line {
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #board-root .stat-name .line2 {
+    color: var(--board-text-dim);
   }
   #board-root .dir-btn {
     flex-shrink: 0;
@@ -347,14 +351,32 @@
     return n;
   }
 
+  function nameLines(name) {
+    var parts = name.split(/\s*\/\s*/);
+    if (parts.length >= 2) {
+      return { line1: parts[0] + ' /', line2: parts.slice(1).join(' / ') };
+    }
+    return { line1: name, line2: '' };
+  }
+
   function statRow(station, showDirections) {
     var row = document.createElement('div');
     row.className = 'stat-row';
 
     var name = document.createElement('div');
     name.className = 'stat-name';
-    name.textContent = abbreviateName(station.name);
     name.title = station.name;
+    var lines = nameLines(abbreviateName(station.name));
+    var l1 = document.createElement('div');
+    l1.className = 'line line1';
+    l1.textContent = lines.line1;
+    name.appendChild(l1);
+    if (lines.line2) {
+      var l2 = document.createElement('div');
+      l2.className = 'line line2';
+      l2.textContent = lines.line2;
+      name.appendChild(l2);
+    }
     row.appendChild(name);
 
     if (showDirections) {
