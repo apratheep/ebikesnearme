@@ -6,11 +6,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#10151a">
+<meta name="theme-color" content="#1c1c1e">
 <title>Bike share TO — e-bikes</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; padding: 0; background: #10151a; }
+  html, body { margin: 0; padding: 0; background: #1c1c1e; }
   body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 </style>
 </head>
@@ -18,31 +18,40 @@
 <h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Live e-bike availability at the 8 nearest Bike Share Toronto stations, split into all-nearest and nearest-with-ebikes, auto-refreshing every 25 seconds</h2>
 <style>
   #board-root {
-    --board-bg: #10151a;
-    --board-panel: #171e25;
-    --board-line: #2a333c;
-    --board-amber: #ffb200;
-    --board-amber-dim: #7a5900;
+    --board-bg: #1c1c1e;
+    --board-panel: #2a2a2c;
+    --board-line: #3d3d40;
+    --board-amber: #f4631e;
+    --board-amber-dim: #4a2712;
     --board-accent: #4da3ff;
     --board-accent-dim: #1c3a5c;
     --board-green: #3ddc84;
+    --board-green-header: #0b7a3b;
+    --board-green-light: #4fbd7a;
     --board-red: #ff5c5c;
-    --board-text: #d7dee4;
-    --board-text-dim: #7c8894;
+    --board-text: #f2f2f2;
+    --board-text-dim: #9a9a9e;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: var(--board-bg);
     color: var(--board-text);
     border-radius: 0;
-    padding: 1rem;
     width: 100%;
     max-width: 640px;
     margin: 0 auto;
     min-height: 100vh;
+    overflow: hidden;
   }
   @media (min-width: 480px) {
-    #board-root { border-radius: 14px; padding: 1.25rem; min-height: 0; margin: 1rem auto; }
+    #board-root { border-radius: 14px; min-height: 0; margin: 1rem auto; }
   }
   #board-root .mono { font-family: 'Courier New', ui-monospace, Menlo, monospace; }
+  #board-root .top-band {
+    background: var(--board-green-header);
+    padding: 1rem 1rem 1.1rem;
+  }
+  #board-root .body-content {
+    padding: 1rem;
+  }
   #board-root .head-row {
     display: flex;
     align-items: baseline;
@@ -54,23 +63,33 @@
     letter-spacing: 0.05em;
     text-transform: uppercase;
     font-weight: 600;
-    color: var(--board-text);
+    color: #ffffff;
   }
   @media (min-width: 480px) {
     #board-root .title { font-size: 15px; letter-spacing: 0.06em; }
   }
-  #board-root .clock { font-size: 12px; color: var(--board-text-dim); }
-  #board-root .sub { font-size: 12px; color: var(--board-text-dim); margin-bottom: 14px; }
+  #board-root .clock { font-size: 12px; color: rgba(255, 255, 255, 0.75); }
+  #board-root .sub { font-size: 12px; color: rgba(255, 255, 255, 0.85); margin-bottom: 14px; }
   #board-root .nearest-btn {
     width: 100%;
-    background: var(--board-panel);
-    border: 1px solid var(--board-line);
-    color: var(--board-text);
+    background: rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #ffffff;
     font-size: 13px;
-    padding: 10px;
-    border-radius: 8px;
-    margin-bottom: 16px;
+    font-weight: 500;
+    padding: 12px;
+    border-radius: 999px;
     cursor: pointer;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+      0 2px 10px rgba(0, 0, 0, 0.15);
+    transition: background 0.15s ease;
+  }
+  #board-root .nearest-btn:active {
+    background: var(--board-green-light);
   }
   #board-root .columns {
     display: grid;
@@ -167,22 +186,26 @@
 </style>
 
 <div id="board-root">
-  <div class="head-row">
-    <span class="title">Bike share TO — e-bikes</span>
-    <span class="clock mono" id="clock">--:--:--</span>
-  </div>
-  <div class="sub">8 nearest stations, split by e-bike availability.</div>
+  <div class="top-band">
+    <div class="head-row">
+      <span class="title">Bike share TO — e-bikes</span>
+      <span class="clock mono" id="clock">--:--:--</span>
+    </div>
+    <div class="sub">8 nearest stations, split by e-bike availability.</div>
 
-  <button id="nearest-btn" type="button" class="nearest-btn">📍 Refresh my location</button>
-
-  <div class="columns" id="columns">
-    <div class="col-head">Nearest</div>
-    <div class="col-head ebike-col">Nearest w/ e-bike</div>
+    <button id="nearest-btn" type="button" class="nearest-btn">📍 Refresh my location</button>
   </div>
 
-  <div class="footer">
-    <span><span class="status-dot" id="status-dot"></span><span id="status-text">connecting…</span></span>
-    <span id="updated-text">—</span>
+  <div class="body-content">
+    <div class="columns" id="columns">
+      <div class="col-head">Nearest</div>
+      <div class="col-head ebike-col">Nearest w/ e-bike</div>
+    </div>
+
+    <div class="footer">
+      <span><span class="status-dot" id="status-dot"></span><span id="status-text">connecting…</span></span>
+      <span id="updated-text">—</span>
+    </div>
   </div>
 </div>
 
