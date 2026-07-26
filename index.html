@@ -102,7 +102,9 @@
     white-space: nowrap;
     flex: 1;
     min-width: 0;
+    text-decoration: none;
   }
+  #board-root .stat-name:active { color: var(--board-amber); }
   @media (min-width: 480px) {
     #board-root .stat-name { font-size: 12.5px; }
   }
@@ -310,14 +312,40 @@
     return arr.map(function(x) { return x.s; });
   }
 
+  function abbreviateName(name) {
+    var n = name;
+    var repl = [
+      [/\bStreet\b/gi, 'St'], [/\bAvenue\b/gi, 'Ave'], [/\bBoulevard\b/gi, 'Blvd'],
+      [/\bDrive\b/gi, 'Dr'], [/\bRoad\b/gi, 'Rd'], [/\bPlace\b/gi, 'Pl'],
+      [/\bCrescent\b/gi, 'Cres'], [/\bLane\b/gi, 'Ln'], [/\bCourt\b/gi, 'Ct'],
+      [/\bCircle\b/gi, 'Cir'], [/\bSquare\b/gi, 'Sq'], [/\bTerrace\b/gi, 'Terr'],
+      [/\bParkway\b/gi, 'Pkwy'], [/\bHighway\b/gi, 'Hwy'], [/\bGardens\b/gi, 'Gdns'],
+      [/\bTrail\b/gi, 'Trl'], [/\bStation\b/gi, 'Stn'],
+      [/\bNorth\b/gi, 'N'], [/\bSouth\b/gi, 'S'], [/\bEast\b/gi, 'E'], [/\bWest\b/gi, 'W']
+    ];
+    for (var i = 0; i < repl.length; i++) n = n.replace(repl[i][0], repl[i][1]);
+    n = n.replace(/\s+/g, ' ').trim();
+    if (n.length > 22) {
+      var slash = n.indexOf(' / ');
+      if (slash > 0 && slash < 22) n = n.slice(0, slash);
+      else n = n.slice(0, 21) + '…';
+    }
+    return n;
+  }
+
   function statRow(station) {
     var row = document.createElement('div');
     row.className = 'stat-row';
 
-    var name = document.createElement('div');
-    name.className = 'stat-name';
-    name.textContent = station.name;
-    row.appendChild(name);
+    var link = document.createElement('a');
+    link.className = 'stat-name';
+    link.textContent = abbreviateName(station.name);
+    link.title = station.name;
+    link.href = 'https://maps.apple.com/?ll=' + station.lat + ',' + station.lon +
+      '&q=' + encodeURIComponent(station.name);
+    link.target = '_blank';
+    link.rel = 'noopener';
+    row.appendChild(link);
 
     var num = document.createElement('div');
     var v = (station.ebikes === null || station.ebikes === undefined) ? '--' : station.ebikes;
