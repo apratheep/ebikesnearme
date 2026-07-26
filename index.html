@@ -466,7 +466,10 @@
     if (nearest8.length === 0) {
       colA.innerHTML = '<div class="empty">No data</div>';
     } else {
-      nearest8.forEach(function(s) { colA.appendChild(statRow(s, false)); });
+      nearest8.forEach(function(s, idx) {
+        var showDir = idx < 2 && s.ebikes === 0;
+        colA.appendChild(statRow(s, showDir));
+      });
     }
 
     if (nearestWithEbikes8.length === 0) {
