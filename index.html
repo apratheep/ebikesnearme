@@ -6,11 +6,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#e7f2ea">
+<meta name="theme-color" content="#2b3140">
 <title>Bike share TO — e-bikes</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; padding: 0; background: #e7f2ea; }
+  html, body { margin: 0; padding: 0; background: #2b3140; }
   body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 </style>
 </head>
@@ -59,14 +59,14 @@
     margin-bottom: 2px;
   }
   #board-root .title {
-    font-size: 13.5px;
-    letter-spacing: 0.05em;
+    font-size: 16px;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
-    font-weight: 700;
+    font-weight: 800;
     color: var(--board-green-dark);
   }
   @media (min-width: 480px) {
-    #board-root .title { font-size: 15px; letter-spacing: 0.06em; }
+    #board-root .title { font-size: 18px; letter-spacing: 0.04em; }
   }
   #board-root .clock { font-size: 12px; color: var(--board-green-dark); opacity: 0.7; }
   #board-root .sub { font-size: 12px; color: var(--board-green-dark); opacity: 0.8; margin-bottom: 14px; font-weight: 500; }
@@ -190,7 +190,9 @@
     </div>
     <div class="sub">8 nearest stations, split by e-bike availability.</div>
 
-    <button id="nearest-btn" type="button" class="nearest-btn">📍 Refresh my location</button>
+    <button id="nearest-btn" type="button" class="nearest-btn">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="var(--board-amber)" style="vertical-align:-3px;margin-right:5px;"><path d="M12 2C7.58 2 4 5.58 4 10c0 5.25 7 12 8 12s8-6.75 8-12c0-4.42-3.58-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>Refresh my location
+  </button>
   </div>
 
   <div class="body-content">
@@ -254,19 +256,19 @@
       alert('Location isn\'t available in this browser.');
       return;
     }
-    var originalLabel = elNearestBtn.textContent;
+    var originalLabel = elNearestBtn.innerHTML;
     elNearestBtn.textContent = 'Finding your location…';
     elNearestBtn.disabled = true;
 
     navigator.geolocation.getCurrentPosition(function(pos) {
       userLoc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
       saveLocation();
-      elNearestBtn.textContent = originalLabel;
+      elNearestBtn.innerHTML = originalLabel;
       elNearestBtn.disabled = false;
       render();
       if (cb) cb();
     }, function(err) {
-      elNearestBtn.textContent = originalLabel;
+      elNearestBtn.innerHTML = originalLabel;
       elNearestBtn.disabled = false;
       alert('Couldn\'t get your location. Try again, or check Safari\'s location permission for this site.');
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
