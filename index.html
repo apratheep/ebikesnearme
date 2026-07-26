@@ -23,6 +23,8 @@
     --board-line: #2a333c;
     --board-amber: #ffb200;
     --board-amber-dim: #7a5900;
+    --board-accent: #4da3ff;
+    --board-accent-dim: #1c3a5c;
     --board-green: #3ddc84;
     --board-red: #ff5c5c;
     --board-text: #d7dee4;
@@ -110,14 +112,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--board-amber-dim);
-    color: var(--board-amber);
+    background: var(--board-accent-dim);
+    color: var(--board-accent);
     border-radius: 5px;
     font-size: 11px;
     text-decoration: none;
     line-height: 1;
   }
-  #board-root .dir-btn:active { background: var(--board-amber); color: #10151a; }
+  #board-root .dir-btn:active { background: var(--board-accent); color: #10151a; }
   @media (min-width: 480px) {
     #board-root .stat-name { font-size: 12.5px; }
   }
@@ -338,11 +340,6 @@
     ];
     for (var i = 0; i < repl.length; i++) n = n.replace(repl[i][0], repl[i][1]);
     n = n.replace(/\s+/g, ' ').trim();
-    if (n.length > 22) {
-      var slash = n.indexOf(' / ');
-      if (slash > 0 && slash < 22) n = n.slice(0, slash);
-      else n = n.slice(0, 21) + '…';
-    }
     return n;
   }
 
@@ -364,7 +361,7 @@
       dirBtn.target = '_blank';
       dirBtn.rel = 'noopener';
       dirBtn.setAttribute('aria-label', 'Directions to ' + station.name);
-      dirBtn.textContent = '➜';
+      dirBtn.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19V11a5 5 0 0 1 5-5h7"/><path d="M14 2l4 4-4 4"/></svg>';
       row.appendChild(dirBtn);
     }
 
