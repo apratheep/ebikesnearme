@@ -102,9 +102,22 @@
     white-space: nowrap;
     flex: 1;
     min-width: 0;
-    text-decoration: none;
   }
-  #board-root .stat-name:active { color: var(--board-amber); }
+  #board-root .dir-btn {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--board-amber-dim);
+    color: var(--board-amber);
+    border-radius: 5px;
+    font-size: 11px;
+    text-decoration: none;
+    line-height: 1;
+  }
+  #board-root .dir-btn:active { background: var(--board-amber); color: #10151a; }
   @media (min-width: 480px) {
     #board-root .stat-name { font-size: 12.5px; }
   }
@@ -333,19 +346,27 @@
     return n;
   }
 
-  function statRow(station) {
+  function statRow(station, showDirections) {
     var row = document.createElement('div');
     row.className = 'stat-row';
 
-    var link = document.createElement('a');
-    link.className = 'stat-name';
-    link.textContent = abbreviateName(station.name);
-    link.title = station.name;
-    link.href = 'https://maps.apple.com/?ll=' + station.lat + ',' + station.lon +
-      '&q=' + encodeURIComponent(station.name);
-    link.target = '_blank';
-    link.rel = 'noopener';
-    row.appendChild(link);
+    var name = document.createElement('div');
+    name.className = 'stat-name';
+    name.textContent = abbreviateName(station.name);
+    name.title = station.name;
+    row.appendChild(name);
+
+    if (showDirections) {
+      var dirBtn = document.createElement('a');
+      dirBtn.className = 'dir-btn';
+      dirBtn.href = 'https://maps.apple.com/?daddr=' + station.lat + ',' + station.lon +
+        '&q=' + encodeURIComponent(station.name);
+      dirBtn.target = '_blank';
+      dirBtn.rel = 'noopener';
+      dirBtn.setAttribute('aria-label', 'Directions to ' + station.name);
+      dirBtn.textContent = '➜';
+      row.appendChild(dirBtn);
+    }
 
     var num = document.createElement('div');
     var v = (station.ebikes === null || station.ebikes === undefined) ? '--' : station.ebikes;
@@ -385,13 +406,13 @@
     if (nearest8.length === 0) {
       colA.innerHTML = '<div class="empty">No data</div>';
     } else {
-      nearest8.forEach(function(s) { colA.appendChild(statRow(s)); });
+      nearest8.forEach(function(s) { colA.appendChild(statRow(s, false)); });
     }
 
     if (nearestWithEbikes8.length === 0) {
       colB.innerHTML = '<div class="empty">None nearby</div>';
     } else {
-      nearestWithEbikes8.forEach(function(s) { colB.appendChild(statRow(s)); });
+      nearestWithEbikes8.forEach(function(s) { colB.appendChild(statRow(s, true)); });
     }
 
     elColumns.appendChild(colA);
