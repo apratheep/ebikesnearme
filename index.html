@@ -62,7 +62,8 @@
     flex-direction: column;
   }
   #board-root .bottom-band {
-    background: var(--board-green-header);
+    background: var(--board-bg);
+    border-top: 1px solid var(--board-line);
     flex-shrink: 0;
   }
   #board-root .head-row {
@@ -187,7 +188,8 @@
   #board-root .footer {
     display: flex;
     justify-content: space-between;
-    margin-top: 14px;
+    margin-top: auto;
+    padding-top: 8px;
     font-size: 11px;
     color: var(--board-text-dim);
   }
@@ -202,41 +204,73 @@
   #board-root .dock-link {
     display: block;
     text-decoration: none;
-    padding: 0.7rem 1rem calc(0.8rem + env(safe-area-inset-bottom));
-    text-align: center;
+    padding: 0.5rem 1rem calc(0.7rem + env(safe-area-inset-bottom));
+  }
+  #board-root .dock-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
   #board-root .dock-title {
+    flex: 1;
+    min-width: 0;
     font-size: 15px;
     font-weight: 800;
     letter-spacing: 0.02em;
     color: #ffffff;
-    background: var(--board-green-dark);
+    background: var(--board-panel);
+    border: 1px solid var(--board-line);
     border-radius: 12px;
     padding: 14px 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    box-shadow: 0 3px 0 #123f28, 0 4px 10px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 3px 0 #14171d, 0 4px 10px rgba(0, 0, 0, 0.25);
     transition: transform 0.05s ease;
   }
+  #board-root .dock-title svg {
+    color: var(--board-accent);
+    flex-shrink: 0;
+  }
   #board-root .dock-link:active .dock-title {
-    box-shadow: 0 1px 0 #123f28, 0 2px 4px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 1px 0 #14171d, 0 2px 4px rgba(0, 0, 0, 0.2);
     transform: translateY(2px);
   }
+  #board-root .dock-count {
+    flex-shrink: 0;
+    text-align: center;
+  }
+  #board-root .dock-count-num {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--board-amber);
+    line-height: 1;
+  }
+  #board-root .dock-count-lbl {
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--board-text-dim);
+    margin-top: 2px;
+  }
   #board-root .dock-sub {
-    font-size: 11.5px;
-    color: var(--board-green-dark);
-    opacity: 0.85;
-    margin-top: 6px;
-    font-weight: 500;
+    font-size: 13px;
+    margin-top: 8px;
+    font-weight: 600;
+    text-align: center;
+  }
+  #board-root .dock-sub .dock-name {
+    color: var(--board-text);
+  }
+  #board-root .dock-sub .dock-dist {
+    color: var(--board-amber);
   }
   #board-root .dock-none {
     text-align: center;
-    padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom));
+    padding: 0.6rem 1rem calc(0.7rem + env(safe-area-inset-bottom));
     font-size: 12px;
-    color: var(--board-green-dark);
-    opacity: 0.75;
+    color: var(--board-text-dim);
   }
 </style>
 
@@ -565,15 +599,26 @@
     link.rel = 'noopener';
     link.setAttribute('aria-label', 'Navigate to nearest open dock at ' + target.name);
 
+    var row = document.createElement('div');
+    row.className = 'dock-row';
+
     var title = document.createElement('div');
     title.className = 'dock-title';
     title.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19V11a5 5 0 0 1 5-5h7"/><path d="M14 2l4 4-4 4"/></svg><span>NAVIGATE TO NEAREST OPEN DOCK</span>';
 
+    var count = document.createElement('div');
+    count.className = 'dock-count';
+    count.innerHTML = '<div class="dock-count-num">' + target.docks + '</div><div class="dock-count-lbl">docks</div>';
+
+    row.appendChild(title);
+    row.appendChild(count);
+
     var sub = document.createElement('div');
     sub.className = 'dock-sub';
-    sub.textContent = abbreviateName(target.name) + ' • ' + distLabel + ' • ' + target.docks + ' open';
+    sub.innerHTML = '<span class="dock-name">' + abbreviateName(target.name) + '</span>' +
+      ' <span class="dock-dist">• ' + distLabel + '</span>';
 
-    link.appendChild(title);
+    link.appendChild(row);
     link.appendChild(sub);
     elBottomBand.innerHTML = '';
     elBottomBand.appendChild(link);
