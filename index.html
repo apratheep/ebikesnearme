@@ -387,6 +387,16 @@
     return { line1: name, line2: '' };
   }
 
+  function directionsUrl(station) {
+    var ua = navigator.userAgent || '';
+    if (/android/i.test(ua)) {
+      return 'https://www.google.com/maps/dir/?api=1&destination=' + station.lat + ',' + station.lon +
+        '&destination_place_id=&travelmode=walking';
+    }
+    return 'https://maps.apple.com/?daddr=' + station.lat + ',' + station.lon +
+      '&q=' + encodeURIComponent(station.name);
+  }
+
   function statRow(station, showDirections) {
     var row = document.createElement('div');
     row.className = 'stat-row';
@@ -410,8 +420,7 @@
     if (showDirections) {
       var dirBtn = document.createElement('a');
       dirBtn.className = 'dir-btn';
-      dirBtn.href = 'https://maps.apple.com/?daddr=' + station.lat + ',' + station.lon +
-        '&q=' + encodeURIComponent(station.name);
+      dirBtn.href = directionsUrl(station);
       dirBtn.target = '_blank';
       dirBtn.rel = 'noopener';
       dirBtn.setAttribute('aria-label', 'Directions to ' + station.name);
