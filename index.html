@@ -10,18 +10,12 @@
 <title>Bike share TO — e-bikes</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body {
-    margin: 0;
-    padding: 0;
-    background: #10151a;
-  }
-  body {
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  }
+  html, body { margin: 0; padding: 0; background: #10151a; }
+  body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 </style>
 </head>
 <body>
-<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Live e-bike availability board for chosen Bike Share Toronto stations, auto-refreshing every 25 seconds</h2>
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Live e-bike availability at the 8 nearest Bike Share Toronto stations, split into all-nearest and nearest-with-ebikes, auto-refreshing every 25 seconds</h2>
 <style>
   #board-root {
     --board-bg: #10151a;
@@ -46,9 +40,7 @@
   @media (min-width: 480px) {
     #board-root { border-radius: 14px; padding: 1.25rem; min-height: 0; margin: 1rem auto; }
   }
-  #board-root .mono {
-    font-family: 'Courier New', ui-monospace, Menlo, monospace;
-  }
+  #board-root .mono { font-family: 'Courier New', ui-monospace, Menlo, monospace; }
   #board-root .head-row {
     display: flex;
     align-items: baseline;
@@ -65,125 +57,77 @@
   @media (min-width: 480px) {
     #board-root .title { font-size: 15px; letter-spacing: 0.06em; }
   }
-  #board-root .clock {
-    font-size: 12px;
-    color: var(--board-text-dim);
-  }
-  #board-root .sub {
-    font-size: 12px;
-    color: var(--board-text-dim);
-    margin-bottom: 14px;
-  }
-  #board-root .search-wrap {
-    position: relative;
-    margin-bottom: 14px;
-  }
-  #board-root input[type=text] {
+  #board-root .clock { font-size: 12px; color: var(--board-text-dim); }
+  #board-root .sub { font-size: 12px; color: var(--board-text-dim); margin-bottom: 14px; }
+  #board-root .nearest-btn {
     width: 100%;
-    box-sizing: border-box;
     background: var(--board-panel);
     border: 1px solid var(--board-line);
     color: var(--board-text);
-    font-size: 16px;
-    padding: 12px 12px;
+    font-size: 13px;
+    padding: 10px;
     border-radius: 8px;
-    outline: none;
-    -webkit-appearance: none;
-  }
-  #board-root input[type=text]:focus {
-    border-color: var(--board-amber-dim);
-  }
-  #board-root .suggest {
-    position: absolute;
-    top: 42px;
-    left: 0;
-    right: 0;
-    background: var(--board-panel);
-    border: 1px solid var(--board-line);
-    border-radius: 8px;
-    max-height: 220px;
-    overflow-y: auto;
-    z-index: 5;
-  }
-  #board-root .suggest-item {
-    padding: 12px 12px;
-    font-size: 14px;
+    margin-bottom: 16px;
     cursor: pointer;
-    border-bottom: 1px solid var(--board-line);
   }
-  #board-root .suggest-item:last-child { border-bottom: none; }
-  #board-root .suggest-item:hover { background: #1e262e; }
-  #board-root .suggest-item .snum { color: var(--board-text-dim); margin-left: 6px; font-size: 11px; }
-  #board-root .row {
+  #board-root .columns {
     display: grid;
-    grid-template-columns: 1fr auto auto auto 32px;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  #board-root .col-head {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--board-text-dim);
+    padding: 0 2px 8px;
+    border-bottom: 1px solid var(--board-line);
+    margin-bottom: 6px;
+  }
+  #board-root .col-head.ebike-col { color: var(--board-amber); }
+  #board-root .stat-row {
+    display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 4px;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 9px 2px;
     border-bottom: 1px solid var(--board-line);
   }
-  @media (min-width: 480px) {
-    #board-root .row { gap: 14px; padding: 12px 10px; }
-  }
-  #board-root .row:last-child { border-bottom: none; }
-  #board-root .name {
-    font-size: 12.5px;
+  #board-root .stat-row:last-child { border-bottom: none; }
+  #board-root .stat-name {
+    font-size: 11.5px;
     color: var(--board-text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex: 1;
+    min-width: 0;
   }
   @media (min-width: 480px) {
-    #board-root .name { font-size: 13px; }
+    #board-root .stat-name { font-size: 12.5px; }
   }
-  #board-root .metric { text-align: right; min-width: 34px; }
-  #board-root .metric .num {
-    font-size: 19px;
+  #board-root .stat-num {
+    font-size: 17px;
     font-weight: 700;
-    line-height: 1;
+    flex-shrink: 0;
   }
   @media (min-width: 480px) {
-    #board-root .metric { min-width: 46px; }
-    #board-root .metric .num { font-size: 22px; }
+    #board-root .stat-num { font-size: 19px; }
   }
-  #board-root .metric .lbl {
-    font-size: 8.5px;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    color: var(--board-text-dim);
-    margin-top: 2px;
-  }
-  #board-root .num.amber { color: var(--board-amber); }
-  #board-root .num.dim { color: var(--board-text-dim); font-size: 14px; font-weight: 500; }
-  @media (min-width: 480px) {
-    #board-root .num.dim { font-size: 16px; }
-  }
-  #board-root .num.zero { color: var(--board-red); }
-  #board-root .remove-btn {
-    background: none;
-    border: none;
-    color: var(--board-text-dim);
-    cursor: pointer;
-    font-size: 18px;
-    line-height: 1;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-  }
-  #board-root .remove-btn:hover { color: var(--board-red); }
+  #board-root .stat-num.amber { color: var(--board-amber); }
+  #board-root .stat-num.zero { color: var(--board-red); }
+  #board-root .stat-num.dim { color: var(--board-text-dim); }
   #board-root .empty {
     text-align: center;
-    padding: 30px 10px;
+    padding: 24px 8px;
     color: var(--board-text-dim);
-    font-size: 13px;
+    font-size: 12px;
+    grid-column: 1 / -1;
   }
   #board-root .footer {
     display: flex;
     justify-content: space-between;
-    margin-top: 12px;
+    margin-top: 14px;
     font-size: 11px;
     color: var(--board-text-dim);
   }
@@ -202,19 +146,14 @@
     <span class="title">Bike share TO — e-bikes</span>
     <span class="clock mono" id="clock">--:--:--</span>
   </div>
-  <div class="sub">Live from the GBFS feed. Auto-fills your 8 nearest stations on first open.</div>
+  <div class="sub">8 nearest stations, split by e-bike availability.</div>
 
-  <div class="search-wrap">
-    <input type="text" id="search" placeholder="Or search a station name..." autocomplete="off" />
-    <div class="suggest" id="suggest" style="display:none;"></div>
+  <button id="nearest-btn" type="button" class="nearest-btn">📍 Refresh my location</button>
+
+  <div class="columns" id="columns">
+    <div class="col-head">Nearest</div>
+    <div class="col-head ebike-col">Nearest w/ e-bike</div>
   </div>
-
-  <button id="nearest-btn" type="button" style="width:100%;background:#171e25;border:1px solid #2a333c;color:#d7dee4;font-size:13px;padding:10px;border-radius:8px;margin-bottom:14px;cursor:pointer;">
-    📍 Use my location for 8 nearest
-  </button>
-
-  <div id="rows"></div>
-  <div class="empty" id="empty" style="display:none;">No stations pinned yet. Tap "Use my location" or search above.</div>
 
   <div class="footer">
     <span><span class="status-dot" id="status-dot"></span><span id="status-text">connecting…</span></span>
@@ -226,22 +165,20 @@
 (function() {
   var STATION_INFO_URL = 'https://tor.publicbikesystem.net/ube/gbfs/v1/en/station_information';
   var STATION_STATUS_URL = 'https://tor.publicbikesystem.net/ube/gbfs/v1/en/station_status';
-  var FAV_KEY = 'ebike-board-favorites';
+  var LOC_KEY = 'ebike-board-location';
   var INFO_CACHE_KEY = 'ebike-board-station-info-cache';
   var INFO_MAX_AGE_MS = 1000 * 60 * 60 * 12;
 
   var stationsById = {};
-  var favorites = [];
+  var userLoc = null;
   var lastStatusFetch = 0;
 
-  var elRows = document.getElementById('rows');
-  var elEmpty = document.getElementById('empty');
-  var elSearch = document.getElementById('search');
-  var elSuggest = document.getElementById('suggest');
+  var elColumns = document.getElementById('columns');
   var elClock = document.getElementById('clock');
   var elStatusDot = document.getElementById('status-dot');
   var elStatusText = document.getElementById('status-text');
   var elUpdatedText = document.getElementById('updated-text');
+  var elNearestBtn = document.getElementById('nearest-btn');
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
@@ -256,36 +193,37 @@
     return R * c;
   }
 
-  function useMyLocation() {
+  function saveLocation() {
+    try { localStorage.setItem(LOC_KEY, JSON.stringify(userLoc)); } catch (e) {}
+  }
+
+  function loadLocation() {
+    try {
+      var raw = localStorage.getItem(LOC_KEY);
+      userLoc = raw ? JSON.parse(raw) : null;
+    } catch (e) { userLoc = null; }
+  }
+
+  function useMyLocation(cb) {
     if (!navigator.geolocation) {
       alert('Location isn\'t available in this browser.');
       return;
     }
-    var btn = document.getElementById('nearest-btn');
-    var originalLabel = btn.textContent;
-    btn.textContent = 'Finding nearby stations…';
-    btn.disabled = true;
+    var originalLabel = elNearestBtn.textContent;
+    elNearestBtn.textContent = 'Finding your location…';
+    elNearestBtn.disabled = true;
 
     navigator.geolocation.getCurrentPosition(function(pos) {
-      var lat = pos.coords.latitude;
-      var lon = pos.coords.longitude;
-      var withDist = [];
-      for (var id in stationsById) {
-        var s = stationsById[id];
-        if (typeof s.lat === 'number' && typeof s.lon === 'number') {
-          withDist.push({ id: id, d: distanceKm(lat, lon, s.lat, s.lon) });
-        }
-      }
-      withDist.sort(function(a, b) { return a.d - b.d; });
-      favorites = withDist.slice(0, 8).map(function(x) { return x.id; });
-      saveFavorites();
+      userLoc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      saveLocation();
+      elNearestBtn.textContent = originalLabel;
+      elNearestBtn.disabled = false;
       render();
-      btn.textContent = originalLabel;
-      btn.disabled = false;
+      if (cb) cb();
     }, function(err) {
-      btn.textContent = originalLabel;
-      btn.disabled = false;
-      alert('Couldn\'t get your location. You can still search for stations manually above.');
+      elNearestBtn.textContent = originalLabel;
+      elNearestBtn.disabled = false;
+      alert('Couldn\'t get your location. Try again, or check Safari\'s location permission for this site.');
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
   }
 
@@ -296,21 +234,6 @@
       var secs = Math.round((Date.now() - lastStatusFetch) / 1000);
       elUpdatedText.textContent = 'updated ' + secs + 's ago';
     }
-  }
-
-  async function loadFavorites() {
-    try {
-      var raw = localStorage.getItem(FAV_KEY);
-      favorites = raw ? JSON.parse(raw) : [];
-    } catch (e) {
-      favorites = [];
-    }
-  }
-
-  async function saveFavorites() {
-    try {
-      localStorage.setItem(FAV_KEY, JSON.stringify(favorites));
-    } catch (e) {}
   }
 
   async function loadStationInfo() {
@@ -345,12 +268,9 @@
       stationsById[s.station_id] = {
         id: s.station_id,
         name: s.name,
-        num: s.short_name || '',
         lat: s.lat,
         lon: s.lon,
-        ebikes: null,
-        mechanical: null,
-        docks: null
+        ebikes: null
       };
     }
   }
@@ -366,8 +286,6 @@
         if (!st) continue;
         var types = s.num_bikes_available_types || {};
         st.ebikes = typeof types.ebike === 'number' ? types.ebike : 0;
-        st.mechanical = typeof types.mechanical === 'number' ? types.mechanical : (s.num_bikes_available || 0);
-        st.docks = s.num_docks_available;
       }
       lastStatusFetch = Date.now();
       elStatusDot.style.background = 'var(--board-green)';
@@ -379,118 +297,87 @@
     render();
   }
 
-  function render() {
-    elRows.innerHTML = '';
-    if (favorites.length === 0) {
-      elEmpty.style.display = 'block';
-      return;
-    }
-    elEmpty.style.display = 'none';
-
-    for (var i = 0; i < favorites.length; i++) {
-      var id = favorites[i];
-      var st = stationsById[id];
-      if (!st) continue;
-
-      var row = document.createElement('div');
-      row.className = 'row';
-
-      var name = document.createElement('div');
-      name.className = 'name';
-      name.textContent = st.name;
-      row.appendChild(name);
-
-      row.appendChild(metricEl(st.ebikes, 'ebikes', true));
-      row.appendChild(metricEl(st.mechanical, 'pedal', false));
-      row.appendChild(metricEl(st.docks, 'docks', false));
-
-      var btn = document.createElement('button');
-      btn.className = 'remove-btn';
-      btn.setAttribute('aria-label', 'Remove ' + st.name);
-      btn.textContent = '\u00d7';
-      btn.addEventListener('click', function(stationId) {
-        return function() {
-          favorites = favorites.filter(function(f) { return f !== stationId; });
-          saveFavorites();
-          render();
-        };
-      }(id));
-      row.appendChild(btn);
-
-      elRows.appendChild(row);
-    }
-  }
-
-  function metricEl(value, label, isEbike) {
-    var wrap = document.createElement('div');
-    wrap.className = 'metric';
-    var num = document.createElement('div');
-    var v = (value === null || value === undefined) ? '--' : value;
-    num.className = 'num mono' + (isEbike ? (v === 0 ? ' zero' : ' amber') : ' dim');
-    num.textContent = v;
-    var lbl = document.createElement('div');
-    lbl.className = 'lbl';
-    lbl.textContent = label;
-    wrap.appendChild(num);
-    wrap.appendChild(lbl);
-    return wrap;
-  }
-
-  function doSearch(q) {
-    q = q.trim().toLowerCase();
-    elSuggest.innerHTML = '';
-    if (!q) { elSuggest.style.display = 'none'; return; }
-
-    var matches = [];
+  function sortedByDistance() {
+    if (!userLoc) return [];
+    var arr = [];
     for (var id in stationsById) {
       var s = stationsById[id];
-      if (favorites.indexOf(id) !== -1) continue;
-      if (s.name.toLowerCase().indexOf(q) !== -1) matches.push(s);
-      if (matches.length >= 8) break;
+      if (typeof s.lat === 'number' && typeof s.lon === 'number') {
+        arr.push({ s: s, d: distanceKm(userLoc.lat, userLoc.lon, s.lat, s.lon) });
+      }
     }
+    arr.sort(function(a, b) { return a.d - b.d; });
+    return arr.map(function(x) { return x.s; });
+  }
 
-    if (matches.length === 0) {
-      elSuggest.style.display = 'none';
+  function statRow(station) {
+    var row = document.createElement('div');
+    row.className = 'stat-row';
+
+    var name = document.createElement('div');
+    name.className = 'stat-name';
+    name.textContent = station.name;
+    row.appendChild(name);
+
+    var num = document.createElement('div');
+    var v = (station.ebikes === null || station.ebikes === undefined) ? '--' : station.ebikes;
+    var cls = 'stat-num mono';
+    if (v === '--') cls += ' dim';
+    else if (v === 0) cls += ' zero';
+    else cls += ' amber';
+    num.className = cls;
+    num.textContent = v;
+    row.appendChild(num);
+
+    return row;
+  }
+
+  function render() {
+    elColumns.innerHTML =
+      '<div class="col-head">Nearest</div>' +
+      '<div class="col-head ebike-col">Nearest w/ e-bike</div>';
+
+    if (!userLoc) {
+      var empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = 'Tap "Refresh my location" above to find your nearest stations.';
+      elColumns.appendChild(empty);
       return;
     }
 
-    for (var i = 0; i < matches.length; i++) {
-      (function(s) {
-        var item = document.createElement('div');
-        item.className = 'suggest-item';
-        item.textContent = s.name;
-        var num = document.createElement('span');
-        num.className = 'snum';
-        num.textContent = s.num ? '#' + s.num : '';
-        item.appendChild(num);
-        item.addEventListener('click', function() {
-          favorites.push(s.id);
-          saveFavorites();
-          elSearch.value = '';
-          elSuggest.style.display = 'none';
-          render();
-        });
-        elSuggest.appendChild(item);
-      })(matches[i]);
+    var byDistance = sortedByDistance();
+    var nearest8 = byDistance.slice(0, 8);
+    var nearestWithEbikes8 = byDistance.filter(function(s) {
+      return typeof s.ebikes === 'number' && s.ebikes > 0;
+    }).slice(0, 8);
+
+    var colA = document.createElement('div');
+    var colB = document.createElement('div');
+
+    if (nearest8.length === 0) {
+      colA.innerHTML = '<div class="empty">No data</div>';
+    } else {
+      nearest8.forEach(function(s) { colA.appendChild(statRow(s)); });
     }
-    elSuggest.style.display = 'block';
+
+    if (nearestWithEbikes8.length === 0) {
+      colB.innerHTML = '<div class="empty">None nearby</div>';
+    } else {
+      nearestWithEbikes8.forEach(function(s) { colB.appendChild(statRow(s)); });
+    }
+
+    elColumns.appendChild(colA);
+    elColumns.appendChild(colB);
   }
 
-  elSearch.addEventListener('input', function() { doSearch(elSearch.value); });
-  elSearch.addEventListener('focus', function() { if (elSearch.value) doSearch(elSearch.value); });
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('#board-root .search-wrap')) elSuggest.style.display = 'none';
-  });
-
-  document.getElementById('nearest-btn').addEventListener('click', useMyLocation);
+  elNearestBtn.addEventListener('click', function() { useMyLocation(); });
 
   async function init() {
-    await loadFavorites();
+    loadLocation();
     await loadStationInfo();
-    var isFirstOpen = favorites.length === 0 && !localStorage.getItem(FAV_KEY);
     render();
     await refreshStatus();
-    if (isFirstOpen) useMyLocation();
+    if (!userLoc) useMyLocation();
     setInterval(refreshStatus, 25000);
     setInterval(tickClock, 1000);
     tickClock();
