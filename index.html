@@ -430,6 +430,7 @@
         lon: s.lon,
         capacity: typeof s.capacity === 'number' ? s.capacity : null,
         ebikes: null,
+        mechanical: null,
         docks: null
       };
     }
@@ -446,6 +447,8 @@
         if (!st) continue;
         var types = s.num_bikes_available_types || {};
         st.ebikes = typeof types.ebike === 'number' ? types.ebike : 0;
+        st.mechanical = typeof types.mechanical === 'number' ? types.mechanical :
+          Math.max(0, (typeof s.num_bikes_available === 'number' ? s.num_bikes_available : 0) - st.ebikes);
         st.docks = typeof s.num_docks_available === 'number' ? s.num_docks_available : 0;
       }
       lastStatusFetch = Date.now();
@@ -564,7 +567,11 @@
     }
 
     var byDistance = sortedByDistance();
-    var nearest8 = byDistance.slice(0, 8);
+    var nearest8 = byDistance.filter(function(s) {
+      var e = typeof s.ebikes === 'number' ? s.ebikes : 0;
+      var m = typeof s.mechanical === 'number' ? s.mechanical : 0;
+      return e + m > 0;
+    }).slice(0, 8);
     var nearestWithEbikes8 = byDistance.filter(function(s) {
       return typeof s.ebikes === 'number' && s.ebikes > 0;
     }).slice(0, 8);
@@ -660,3 +667,4 @@
 </script>
 </body>
 </html>
+
