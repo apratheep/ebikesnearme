@@ -38,19 +38,32 @@
     width: 100%;
     max-width: 640px;
     margin: 0 auto;
-    min-height: 100vh;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
   }
   @media (min-width: 480px) {
-    #board-root { border-radius: 14px; min-height: 0; margin: 1rem auto; }
+    #board-root { border-radius: 14px; height: auto; min-height: 0; margin: 1rem auto; }
   }
   #board-root .mono { font-family: 'Courier New', ui-monospace, Menlo, monospace; }
   #board-root .top-band {
     background: var(--board-green-header);
-    padding: 1rem 1rem 1.1rem;
+    padding: 0.8rem 1rem 0.9rem;
+    flex-shrink: 0;
   }
   #board-root .body-content {
-    padding: 1rem;
+    padding: 0.7rem 1rem;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  #board-root .bottom-band {
+    background: var(--board-green-header);
+    flex-shrink: 0;
   }
   #board-root .head-row {
     display: flex;
@@ -101,9 +114,9 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--board-text-dim);
-    padding: 0 2px 8px;
+    padding: 0 2px 6px;
     border-bottom: 1px solid var(--board-line);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
   #board-root .col-head.ebike-col { color: var(--board-amber); }
   #board-root .stat-row {
@@ -111,7 +124,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 6px;
-    padding: 8px 2px;
+    padding: 6px 2px;
     border-bottom: 1px solid var(--board-line);
   }
   #board-root .stat-row:last-child { border-bottom: none; }
@@ -186,6 +199,45 @@
     background: var(--board-green);
     margin-right: 5px;
   }
+  #board-root .dock-link {
+    display: block;
+    text-decoration: none;
+    padding: 0.7rem 1rem calc(0.8rem + env(safe-area-inset-bottom));
+    text-align: center;
+  }
+  #board-root .dock-title {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: #ffffff;
+    background: var(--board-green-dark);
+    border-radius: 12px;
+    padding: 14px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 3px 0 #123f28, 0 4px 10px rgba(0, 0, 0, 0.18);
+    transition: transform 0.05s ease;
+  }
+  #board-root .dock-link:active .dock-title {
+    box-shadow: 0 1px 0 #123f28, 0 2px 4px rgba(0, 0, 0, 0.15);
+    transform: translateY(2px);
+  }
+  #board-root .dock-sub {
+    font-size: 11.5px;
+    color: var(--board-green-dark);
+    opacity: 0.85;
+    margin-top: 6px;
+    font-weight: 500;
+  }
+  #board-root .dock-none {
+    text-align: center;
+    padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom));
+    font-size: 12px;
+    color: var(--board-green-dark);
+    opacity: 0.75;
+  }
 </style>
 
 <div id="board-root">
@@ -212,6 +264,8 @@
       <span id="updated-text">—</span>
     </div>
   </div>
+
+  <div class="bottom-band" id="bottom-band"></div>
 </div>
 
 <script>
@@ -232,6 +286,7 @@
   var elStatusText = document.getElementById('status-text');
   var elUpdatedText = document.getElementById('updated-text');
   var elNearestBtn = document.getElementById('nearest-btn');
+  var elBottomBand = document.getElementById('bottom-band');
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
@@ -323,7 +378,8 @@
         name: s.name,
         lat: s.lat,
         lon: s.lon,
-        ebikes: null
+        ebikes: null,
+        docks: null
       };
     }
   }
@@ -339,6 +395,7 @@
         if (!st) continue;
         var types = s.num_bikes_available_types || {};
         st.ebikes = typeof types.ebike === 'number' ? types.ebike : 0;
+        st.docks = typeof s.num_docks_available === 'number' ? s.num_docks_available : 0;
       }
       lastStatusFetch = Date.now();
       elStatusDot.style.background = 'var(--board-green)';
@@ -451,6 +508,7 @@
       empty.className = 'empty';
       empty.textContent = 'Tap "Refresh my location" above to find your nearest stations.';
       elColumns.appendChild(empty);
+      elBottomBand.innerHTML = '';
       return;
     }
 
@@ -480,6 +538,45 @@
 
     elColumns.appendChild(colA);
     elColumns.appendChild(colB);
+
+    renderDockBand(byDistance);
+  }
+
+  function renderDockBand(byDistance) {
+    var target = null;
+    for (var i = 0; i < byDistance.length; i++) {
+      if (typeof byDistance[i].docks === 'number' && byDistance[i].docks > 0) {
+        target = byDistance[i];
+        break;
+      }
+    }
+
+    if (!target) {
+      elBottomBand.innerHTML = '<div class="dock-none">No open docks found nearby right now.</div>';
+      return;
+    }
+
+    var dist = distanceKm(userLoc.lat, userLoc.lon, target.lat, target.lon);
+    var distLabel = dist < 1 ? Math.round(dist * 1000) + ' m' : dist.toFixed(1) + ' km';
+    var link = document.createElement('a');
+    link.className = 'dock-link';
+    link.href = directionsUrl(target);
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.setAttribute('aria-label', 'Navigate to nearest open dock at ' + target.name);
+
+    var title = document.createElement('div');
+    title.className = 'dock-title';
+    title.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19V11a5 5 0 0 1 5-5h7"/><path d="M14 2l4 4-4 4"/></svg><span>NAVIGATE TO NEAREST OPEN DOCK</span>';
+
+    var sub = document.createElement('div');
+    sub.className = 'dock-sub';
+    sub.textContent = abbreviateName(target.name) + ' • ' + distLabel + ' • ' + target.docks + ' open';
+
+    link.appendChild(title);
+    link.appendChild(sub);
+    elBottomBand.innerHTML = '';
+    elBottomBand.appendChild(link);
   }
 
   elNearestBtn.addEventListener('click', function() { useMyLocation(); });
