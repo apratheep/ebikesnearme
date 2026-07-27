@@ -7,6 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#2b3140">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="E-bikes">
 <title>Bike share TO — e-bikes</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -288,9 +292,46 @@
     font-size: 12px;
     color: var(--board-text-dim);
   }
+  #board-root .banner {
+    position: fixed;
+    left: 50%;
+    top: calc(env(safe-area-inset-top) + 10px);
+    transform: translateX(-50%);
+    max-width: 88%;
+    background: var(--board-panel);
+    color: var(--board-text);
+    border: 1px solid var(--board-line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    line-height: 1.35;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+  }
+  #board-root .banner button {
+    background: none;
+    border: none;
+    color: var(--board-text-dim);
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  #board-root .is-stale {
+    opacity: 0.55;
+    transition: opacity 0.2s ease;
+  }
 </style>
 
 <div id="board-root">
+  <div id="banner" class="banner" role="alert" style="display:none;">
+    <span id="banner-text"></span>
+    <button id="banner-close" type="button" aria-label="Dismiss">×</button>
+  </div>
+
   <div class="top-band">
     <div class="head-row">
       <span class="title">Bike share TO — e-bikes</span>
@@ -337,6 +378,24 @@
   var elUpdatedText = document.getElementById('updated-text');
   var elNearestBtn = document.getElementById('nearest-btn');
   var elBottomBand = document.getElementById('bottom-band');
+  var elBanner = document.getElementById('banner');
+  var elBannerText = document.getElementById('banner-text');
+  var elBannerClose = document.getElementById('banner-close');
+  var bannerTimer = null;
+
+  function showBanner(msg, timeoutMs) {
+    elBannerText.textContent = msg;
+    elBanner.style.display = 'flex';
+    clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(hideBanner, timeoutMs || 6000);
+  }
+
+  function hideBanner() {
+    elBanner.style.display = 'none';
+    clearTimeout(bannerTimer);
+  }
+
+  elBannerClose.addEventListener('click', hideBanner);
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
@@ -364,7 +423,7 @@
 
   function useMyLocation(cb) {
     if (!navigator.geolocation) {
-      alert('Location isn\'t available in this browser.');
+      showBanner('Location isn\'t available in this browser.');
       return;
     }
     var originalLabel = elNearestBtn.innerHTML;
@@ -381,7 +440,7 @@
     }, function(err) {
       elNearestBtn.innerHTML = originalLabel;
       elNearestBtn.disabled = false;
-      alert('Couldn\'t get your location. Try again, or check Safari\'s location permission for this site.');
+      showBanner('Couldn\'t get your location. Check Safari\'s location permission for this site and try again.', 8000);
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
   }
 
@@ -454,11 +513,18 @@
       lastStatusFetch = Date.now();
       elStatusDot.style.background = 'var(--board-green)';
       elStatusText.textContent = 'live';
+      setStale(false);
     } catch (e) {
       elStatusDot.style.background = 'var(--board-red)';
-      elStatusText.textContent = 'connection issue, retrying';
+      elStatusText.textContent = lastStatusFetch ? 'connection issue — showing last known data' : 'connection issue, retrying';
+      setStale(true);
     }
     render();
+  }
+
+  function setStale(isStale) {
+    elColumns.classList.toggle('is-stale', isStale);
+    elBottomBand.classList.toggle('is-stale', isStale);
   }
 
   function sortedByDistance() {
@@ -667,4 +733,3 @@
 </script>
 </body>
 </html>
-
