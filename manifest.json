@@ -1,0 +1,15 @@
+{
+  "name": "Bike Share TO — E-bikes",
+  "short_name": "E-bikes",
+  "description": "Live e-bike and open-dock availability at the nearest Bike Share Toronto stations.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2b3140",
+  "theme_color": "#2b3140",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
