@@ -1336,7 +1336,7 @@
     var fallbackUrl = link.href;
 
     if (!navigator.geolocation) {
-      window.open(fallbackUrl, '_blank');
+      window.location.href = fallbackUrl;
       return;
     }
 
@@ -1344,10 +1344,10 @@
       userLoc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
       saveLocation();
       var freshTarget = nearestOpenDockStation();
-      window.open(freshTarget ? directionsUrl(freshTarget) : fallbackUrl, '_blank');
+      window.location.href = freshTarget ? directionsUrl(freshTarget) : fallbackUrl;
       render();
     }, function(err) {
-      window.open(fallbackUrl, '_blank');
+      window.location.href = fallbackUrl;
     }, { enableHighAccuracy: true, timeout: 4000, maximumAge: 0 });
   }
 
@@ -1370,8 +1370,6 @@
     var link = document.createElement('a');
     link.className = 'dock-link';
     link.href = directionsUrl(target);
-    link.target = '_blank';
-    link.rel = 'noopener';
     link.setAttribute('aria-label', 'Navigate to nearest open dock at ' + target.name);
     link.addEventListener('click', function(e) { onDockBikeTap(e, link); });
 
