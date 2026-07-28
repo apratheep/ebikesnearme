@@ -822,6 +822,25 @@
     elNotifyModal.style.display = 'none';
   }
 
+  function stationsWithEbikesNow(ids) {
+    return ids.map(function(id) { return stationsById[id]; })
+      .filter(function(s) { return s && typeof s.ebikes === 'number' && s.ebikes > 0; });
+  }
+
+  function announceImmediateAvailability(ids) {
+    var available = stationsWithEbikesNow(ids);
+    if (available.length === 0) return;
+    var msg;
+    if (available.length === 1) {
+      var s = available[0];
+      msg = abbreviateName(s.name) + ' already has ' + s.ebikes + ' e-bike' + (s.ebikes === 1 ? '' : 's') + ' available.';
+    } else {
+      msg = available.length + ' nearby stations already have e-bikes: ' +
+        available.map(function(s) { return abbreviateName(s.name); }).join(', ') + '.';
+    }
+    showBanner(msg, 6000);
+  }
+
   function startNotifyWatch(minutes) {
     if (!userLoc) {
       showBanner('Set your location first so we know your nearest stations.', 4000);
@@ -851,6 +870,7 @@
   function requestNotifyPermissionAndStart(minutes) {
     if (Notification.permission === 'granted') {
       startNotifyWatch(minutes);
+      announceImmediateAvailability(nearestWatchIds());
       return;
     }
     if (Notification.permission === 'denied') {
@@ -861,6 +881,7 @@
     Notification.requestPermission().then(function(perm) {
       if (perm === 'granted') {
         startNotifyWatch(minutes);
+        announceImmediateAvailability(nearestWatchIds());
       } else {
         closeNotifyModal();
         showBanner('Notifications need to be allowed to start watching.', 4000);
