@@ -369,7 +369,7 @@
     font-size: 12.5px;
     line-height: 1.35;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
-    z-index: 1000;
+    z-index: 2100;
   }
   #board-root .banner button {
     background: none;
@@ -465,6 +465,49 @@
     border-radius: 8px;
     cursor: pointer;
   }
+  .notify-hint {
+    font-size: 12px;
+    color: #9a9a9e;
+    margin: 10px 0 0;
+  }
+  .notify-duration-row {
+    display: flex;
+    gap: 6px;
+    padding: 0 6px 10px;
+  }
+  .notify-duration-label {
+    font-size: 11px;
+    color: #9a9a9e;
+    padding: 14px 6px 4px;
+  }
+  .notify-chip {
+    flex: 1;
+    text-align: center;
+    padding: 6px 0;
+    border: 1px solid #3d3d40;
+    border-radius: 6px;
+    font-size: 11px;
+    color: #c9c9cd;
+    cursor: pointer;
+    background: #1c1c1e;
+  }
+  .notify-chip.is-active {
+    background: #f7a72e;
+    border-color: #f7a72e;
+    color: #241a06;
+    font-weight: 700;
+  }
+  .notify-done-btn {
+    margin-top: 12px;
+    background: #f7a72e;
+    border: none;
+    color: #241a06;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 11px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
 </style>
 
 <div id="board-root">
@@ -502,6 +545,11 @@
             <svg class="icon-outline" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             <span class="loc-badge"></span>
           </button>
+          <button type="button" class="loc-icon-btn" id="set-notify-btn" aria-label="Notify me when e-bikes are available">
+            <svg class="icon-filled" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2a1 1 0 0 1 1 1v.1c3.4.46 6 3.4 6 6.9v4.3l1.6 2.4c.42.63-.03 1.4-.78 1.4H4.18c-.75 0-1.2-.77-.78-1.4L5 14.3V10c0-3.5 2.6-6.44 6-6.9V3a1 1 0 0 1 1-1z"/><circle cx="12" cy="20" r="1.6"/></svg>
+            <svg class="icon-outline" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10a6 6 0 0 1 12 0v3.5l1.5 2.5h-15l1.5-2.5V10z"/><path d="M9.5 18.5a2.5 2.5 0 0 0 5 0"/></svg>
+            <span class="loc-badge"></span>
+          </button>
         </span>
       </div>
       <div class="col-head ebike-col">Nearest w/ e-bike</div>
@@ -527,6 +575,20 @@
     <input type="text" id="loc-search" placeholder="Search station name…" autocomplete="off">
     <div id="loc-results" class="loc-results"></div>
     <button type="button" id="loc-clear-btn" class="loc-clear-btn" style="display:none;">Clear saved station</button>
+  </div>
+</div>
+
+<div id="notify-modal" class="loc-modal" style="display:none;">
+  <div class="loc-modal-inner">
+    <div class="loc-modal-header">
+      <span>Notify me about e-bikes</span>
+      <button type="button" id="notify-modal-close" aria-label="Close">×</button>
+    </div>
+    <div id="notify-hint" class="notify-hint">We'll watch your 4 nearest stations and notify you the moment one has an e-bike.</div>
+    <div class="notify-duration-label">Watch for the next…</div>
+    <div id="notify-duration-row" class="notify-duration-row"></div>
+    <button type="button" id="notify-start-btn" class="notify-done-btn">Start watching</button>
+    <button type="button" id="notify-stop-btn" class="loc-clear-btn" style="display:none;">Stop watching</button>
   </div>
 </div>
 
@@ -557,11 +619,19 @@
 
   var HOME_KEY = 'ebike-board-home-station';
   var WORK_KEY = 'ebike-board-work-station';
+  var NOTIFY_KEY = 'ebike-board-notify-watch';
+  var DURATION_OPTIONS = [5, 10, 15, 20];
+  var DEFAULT_NOTIFY_DURATION = 15;
+  var NEAREST_WATCH_COUNT = 4;
   var homeStationId = null;
   var workStationId = null;
+  // notifyWatch: { minutes: number, expiresAt: number } while watching the nearest stations, or null when off.
+  var notifyWatch = null;
+  var pendingNotifyDuration = DEFAULT_NOTIFY_DURATION;
 
   var elSetHomeBtn = document.getElementById('set-home-btn');
   var elSetWorkBtn = document.getElementById('set-work-btn');
+  var elSetNotifyBtn = document.getElementById('set-notify-btn');
   var elLocModal = document.getElementById('loc-modal');
   var elLocModalTitle = document.getElementById('loc-modal-title');
   var elLocModalClose = document.getElementById('loc-modal-close');
@@ -570,15 +640,72 @@
   var elLocClearBtn = document.getElementById('loc-clear-btn');
   var locModalType = null;
 
+  var elNotifyModal = document.getElementById('notify-modal');
+  var elNotifyModalClose = document.getElementById('notify-modal-close');
+  var elNotifyHint = document.getElementById('notify-hint');
+  var elNotifyDurationRow = document.getElementById('notify-duration-row');
+  var elNotifyStartBtn = document.getElementById('notify-start-btn');
+  var elNotifyStopBtn = document.getElementById('notify-stop-btn');
+
   function loadHomeWork() {
     try { homeStationId = localStorage.getItem(HOME_KEY) || null; } catch (e) { homeStationId = null; }
     try { workStationId = localStorage.getItem(WORK_KEY) || null; } catch (e) { workStationId = null; }
+    try {
+      var saved = JSON.parse(localStorage.getItem(NOTIFY_KEY) || 'null');
+      notifyWatch = (saved && typeof saved.minutes === 'number' && typeof saved.expiresAt === 'number') ? saved : null;
+    } catch (e) { notifyWatch = null; }
+    expireStaleNotifyWatch();
     updateLocIconState();
+  }
+
+  function notifyActive() {
+    return !!notifyWatch && Date.now() < notifyWatch.expiresAt;
   }
 
   function updateLocIconState() {
     elSetHomeBtn.classList.toggle('is-set', !!homeStationId);
     elSetWorkBtn.classList.toggle('is-set', !!workStationId);
+    elSetNotifyBtn.classList.toggle('is-set', notifyActive());
+  }
+
+  function saveNotifyState() {
+    try {
+      if (notifyWatch) localStorage.setItem(NOTIFY_KEY, JSON.stringify(notifyWatch));
+      else localStorage.removeItem(NOTIFY_KEY);
+    } catch (e) {}
+    updateLocIconState();
+    render();
+  }
+
+  function notifyMinutesLeft() {
+    if (!notifyWatch) return null;
+    var ms = notifyWatch.expiresAt - Date.now();
+    if (ms <= 0) return 0;
+    return Math.max(1, Math.ceil(ms / 60000));
+  }
+
+  function expireStaleNotifyWatch() {
+    if (notifyWatch && Date.now() >= notifyWatch.expiresAt) {
+      notifyWatch = null;
+      try { localStorage.removeItem(NOTIFY_KEY); } catch (e) {}
+      return true;
+    }
+    return false;
+  }
+
+  function checkNotifyExpiry() {
+    var changed = expireStaleNotifyWatch();
+    if (changed) {
+      updateLocIconState();
+      render();
+      if (elNotifyModal.style.display === 'flex') renderNotifyModal();
+    }
+  }
+
+  // The 4 stations closest to the user right now — recomputed on demand so it
+  // always reflects the latest location/station data rather than a fixed pick.
+  function nearestWatchIds() {
+    return sortedByDistance().slice(0, NEAREST_WATCH_COUNT).map(function(s) { return s.id; });
   }
 
   function makeLocRowIcon(type) {
@@ -591,6 +718,17 @@
     } else {
       span.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
     }
+    return span;
+  }
+
+  function makeNotifyRowIcon() {
+    var span = document.createElement('span');
+    span.className = 'row-loc-icon';
+    var mins = notifyMinutesLeft();
+    var label = mins ? ('Watching for e-bikes — ' + mins + ' min left') : 'Watching for e-bikes';
+    span.setAttribute('aria-label', label);
+    span.title = label;
+    span.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10a6 6 0 0 1 12 0v3.5l1.5 2.5h-15l1.5-2.5V10z"/><path d="M9.5 18.5a2.5 2.5 0 0 0 5 0"/></svg>';
     return span;
   }
 
@@ -663,6 +801,98 @@
     closeLocModal();
     render();
   });
+
+  function notificationsSupported() {
+    return typeof Notification !== 'undefined';
+  }
+
+  function openNotifyModal() {
+    if (!notificationsSupported()) {
+      showBanner('Notifications aren\'t supported in this browser.', 4000);
+      return;
+    }
+    expireStaleNotifyWatch();
+    updateLocIconState();
+    pendingNotifyDuration = notifyWatch ? notifyWatch.minutes : DEFAULT_NOTIFY_DURATION;
+    elNotifyModal.style.display = 'flex';
+    renderNotifyModal();
+  }
+
+  function closeNotifyModal() {
+    elNotifyModal.style.display = 'none';
+  }
+
+  function startNotifyWatch(minutes) {
+    if (!userLoc) {
+      showBanner('Set your location first so we know your nearest stations.', 4000);
+      return;
+    }
+    notifyWatch = { minutes: minutes, expiresAt: Date.now() + minutes * 60000 };
+    saveNotifyState();
+    renderNotifyModal();
+  }
+
+  function stopNotifyWatch() {
+    notifyWatch = null;
+    saveNotifyState();
+    renderNotifyModal();
+  }
+
+  function selectPendingDuration(minutes) {
+    pendingNotifyDuration = minutes;
+    if (notifyWatch) {
+      // Already watching — changing the chip resets the countdown right away.
+      startNotifyWatch(minutes);
+    } else {
+      renderNotifyModal();
+    }
+  }
+
+  function requestNotifyPermissionAndStart(minutes) {
+    if (Notification.permission === 'granted') {
+      startNotifyWatch(minutes);
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      closeNotifyModal();
+      showBanner('Notifications are blocked for this site in your device settings.', 4000);
+      return;
+    }
+    Notification.requestPermission().then(function(perm) {
+      if (perm === 'granted') {
+        startNotifyWatch(minutes);
+      } else {
+        closeNotifyModal();
+        showBanner('Notifications need to be allowed to start watching.', 4000);
+      }
+    });
+  }
+
+  function renderNotifyModal() {
+    var mins = notifyMinutesLeft();
+    elNotifyHint.textContent = notifyWatch
+      ? ('Watching your ' + NEAREST_WATCH_COUNT + ' nearest stations — ' + mins + ' min left.')
+      : ('We\'ll watch your ' + NEAREST_WATCH_COUNT + ' nearest stations and notify you the moment one has an e-bike.');
+
+    elNotifyDurationRow.innerHTML = '';
+    var activeDuration = notifyWatch ? notifyWatch.minutes : pendingNotifyDuration;
+    DURATION_OPTIONS.forEach(function(optionMins) {
+      var chip = document.createElement('div');
+      chip.className = 'notify-chip' + (activeDuration === optionMins ? ' is-active' : '');
+      chip.textContent = optionMins + 'm';
+      chip.addEventListener('click', function() { selectPendingDuration(optionMins); });
+      elNotifyDurationRow.appendChild(chip);
+    });
+
+    elNotifyStartBtn.style.display = notifyWatch ? 'none' : 'block';
+    elNotifyStopBtn.style.display = notifyWatch ? 'block' : 'none';
+  }
+
+  elSetNotifyBtn.addEventListener('click', openNotifyModal);
+  elNotifyModalClose.addEventListener('click', closeNotifyModal);
+  elNotifyModal.addEventListener('click', function(e) { if (e.target === elNotifyModal) closeNotifyModal(); });
+  elNotifyStartBtn.addEventListener('click', function() { requestNotifyPermissionAndStart(pendingNotifyDuration); });
+  elNotifyStopBtn.addEventListener('click', stopNotifyWatch);
 
   function showBanner(msg, timeoutMs) {
     elBannerText.textContent = msg;
@@ -760,6 +990,7 @@
       var secs = Math.round((Date.now() - lastStatusFetch) / 1000);
       elUpdatedText.textContent = 'updated ' + secs + 's ago';
     }
+    if (notifyWatch) checkNotifyExpiry();
   }
 
   async function loadStationInfo() {
@@ -809,15 +1040,18 @@
       var resp = await fetch(STATION_STATUS_URL);
       var data = await resp.json();
       var list = data.data.stations;
+      var watchIds = notifyActive() ? nearestWatchIds() : null;
       for (var i = 0; i < list.length; i++) {
         var s = list[i];
         var st = stationsById[s.station_id];
         if (!st) continue;
+        var prevEbikes = st.ebikes;
         var types = s.num_bikes_available_types || {};
         st.ebikes = typeof types.ebike === 'number' ? types.ebike : 0;
         st.mechanical = typeof types.mechanical === 'number' ? types.mechanical :
           Math.max(0, (typeof s.num_bikes_available === 'number' ? s.num_bikes_available : 0) - st.ebikes);
         st.docks = typeof s.num_docks_available === 'number' ? s.num_docks_available : 0;
+        if (watchIds && watchIds.indexOf(st.id) !== -1) maybeNotifyStation(st, prevEbikes);
       }
       lastStatusFetch = Date.now();
       elStatusDot.style.background = 'var(--board-green)';
@@ -829,6 +1063,18 @@
       setStale(true);
     }
     render();
+  }
+
+  function maybeNotifyStation(st, prevEbikes) {
+    if (!notificationsSupported() || Notification.permission !== 'granted') return;
+    if (prevEbikes === 0 && st.ebikes > 0) {
+      try {
+        new Notification('E-bike available', {
+          body: st.name + ' now has ' + st.ebikes + ' e-bike' + (st.ebikes === 1 ? '' : 's') + ' available.',
+          tag: 'ebike-' + st.id
+        });
+      } catch (e) {}
+    }
   }
 
   function setStale(isStale) {
@@ -883,7 +1129,7 @@
       '&q=' + encodeURIComponent(station.name);
   }
 
-  function statRow(station, showDirections) {
+  function statRow(station, showDirections, watchIds) {
     var row = document.createElement('div');
     row.className = 'stat-row';
 
@@ -905,6 +1151,7 @@
 
     if (station.id === homeStationId) row.appendChild(makeLocRowIcon('home'));
     if (station.id === workStationId) row.appendChild(makeLocRowIcon('work'));
+    if (watchIds && watchIds.indexOf(station.id) !== -1) row.appendChild(makeNotifyRowIcon());
 
     if (showDirections) {
       var dirBtn = document.createElement('a');
@@ -942,6 +1189,7 @@
     }
 
     var byDistance = sortedByDistance();
+    var watchIds = notifyActive() ? byDistance.slice(0, NEAREST_WATCH_COUNT).map(function(s) { return s.id; }) : [];
     var nearest8 = byDistance.filter(function(s) {
       var e = typeof s.ebikes === 'number' ? s.ebikes : 0;
       var m = typeof s.mechanical === 'number' ? s.mechanical : 0;
@@ -959,14 +1207,14 @@
     } else {
       nearest8.forEach(function(s, idx) {
         var showDir = idx < 2 && s.ebikes === 0;
-        colA.appendChild(statRow(s, showDir));
+        colA.appendChild(statRow(s, showDir, watchIds));
       });
     }
 
     if (nearestWithEbikes8.length === 0) {
       colB.innerHTML = '<div class="empty">None nearby</div>';
     } else {
-      nearestWithEbikes8.forEach(function(s) { colB.appendChild(statRow(s, true)); });
+      nearestWithEbikes8.forEach(function(s) { colB.appendChild(statRow(s, true, watchIds)); });
     }
 
     renderDockBand(byDistance);
