@@ -1335,20 +1335,25 @@
     e.preventDefault();
     var fallbackUrl = link.href;
 
-    if (!navigator.geolocation) {
-      window.location.href = fallbackUrl;
-      return;
-    }
+    var locPromise = new Promise(function(resolve) {
+      if (!navigator.geolocation) { resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(function(pos) {
+        resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+      }, function() { resolve(null); }, { enableHighAccuracy: true, timeout: 4000, maximumAge: 0 });
+    });
 
-    navigator.geolocation.getCurrentPosition(function(pos) {
-      userLoc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-      saveLocation();
+    var statusPromise = refreshStatus().catch(function() {});
+
+    Promise.all([locPromise, statusPromise]).then(function(results) {
+      var freshLoc = results[0];
+      if (freshLoc) {
+        userLoc = freshLoc;
+        saveLocation();
+      }
       var freshTarget = nearestOpenDockStation();
       window.location.href = freshTarget ? directionsUrl(freshTarget) : fallbackUrl;
       render();
-    }, function(err) {
-      window.location.href = fallbackUrl;
-    }, { enableHighAccuracy: true, timeout: 4000, maximumAge: 0 });
+    });
   }
 
   function renderDockBand(byDistance) {
