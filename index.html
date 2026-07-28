@@ -121,8 +121,31 @@
     padding: 0 2px 6px;
     border-bottom: 1px solid var(--board-line);
     margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
   #board-root .col-head.ebike-col { color: var(--board-amber); }
+  #board-root .col-head-icons {
+    display: flex;
+    gap: 6px;
+  }
+  #board-root .loc-icon-btn {
+    background: none;
+    border: none;
+    color: var(--board-text-dim);
+    padding: 2px;
+    display: flex;
+    cursor: pointer;
+  }
+  #board-root .loc-icon-btn.is-set {
+    color: var(--board-amber);
+  }
+  #board-root .row-loc-icon {
+    flex-shrink: 0;
+    color: var(--board-text-dim);
+    display: flex;
+  }
   #board-root .stat-row {
     display: flex;
     align-items: center;
@@ -324,6 +347,87 @@
     opacity: 0.55;
     transition: opacity 0.2s ease;
   }
+  .loc-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 2000;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: calc(env(safe-area-inset-top) + 40px) 16px 16px;
+  }
+  .loc-modal-inner {
+    background: #2a2a2c;
+    color: #f2f2f2;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 420px;
+    max-height: 72vh;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .loc-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .loc-modal-header button {
+    background: none;
+    border: none;
+    color: #9a9a9e;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  #loc-search {
+    width: 100%;
+    box-sizing: border-box;
+    background: #1c1c1e;
+    border: 1px solid #3d3d40;
+    color: #f2f2f2;
+    font-size: 16px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  .loc-results {
+    overflow-y: auto;
+    margin-top: 10px;
+    flex: 1;
+    min-height: 0;
+  }
+  .loc-result-item {
+    padding: 11px 6px;
+    border-bottom: 1px solid #3d3d40;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .loc-result-item:active {
+    background: #33333a;
+  }
+  .loc-empty {
+    padding: 14px 6px;
+    color: #9a9a9e;
+    font-size: 13px;
+    text-align: center;
+  }
+  .loc-clear-btn {
+    margin-top: 12px;
+    background: none;
+    border: 1px solid #3d3d40;
+    color: #ff5c5c;
+    font-size: 13px;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
 </style>
 
 <div id="board-root">
@@ -346,8 +450,20 @@
 
   <div class="body-content">
     <div class="columns" id="columns">
-      <div class="col-head">Nearest</div>
+      <div class="col-head">
+        <span>Nearest</span>
+        <span class="col-head-icons">
+          <button type="button" class="loc-icon-btn" id="set-home-btn" aria-label="Set home station">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+          </button>
+          <button type="button" class="loc-icon-btn" id="set-work-btn" aria-label="Set work station">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </span>
+      </div>
       <div class="col-head ebike-col">Nearest w/ e-bike</div>
+      <div id="colA"></div>
+      <div id="colB"></div>
     </div>
 
     <div class="footer">
@@ -357,6 +473,18 @@
   </div>
 
   <div class="bottom-band" id="bottom-band"></div>
+</div>
+
+<div id="loc-modal" class="loc-modal" style="display:none;">
+  <div class="loc-modal-inner">
+    <div class="loc-modal-header">
+      <span id="loc-modal-title">Set home station</span>
+      <button type="button" id="loc-modal-close" aria-label="Close">×</button>
+    </div>
+    <input type="text" id="loc-search" placeholder="Search station name…" autocomplete="off">
+    <div id="loc-results" class="loc-results"></div>
+    <button type="button" id="loc-clear-btn" class="loc-clear-btn" style="display:none;">Clear saved station</button>
+  </div>
 </div>
 
 <script>
@@ -382,6 +510,115 @@
   var elBannerText = document.getElementById('banner-text');
   var elBannerClose = document.getElementById('banner-close');
   var bannerTimer = null;
+
+  var HOME_KEY = 'ebike-board-home-station';
+  var WORK_KEY = 'ebike-board-work-station';
+  var homeStationId = null;
+  var workStationId = null;
+
+  var elSetHomeBtn = document.getElementById('set-home-btn');
+  var elSetWorkBtn = document.getElementById('set-work-btn');
+  var elLocModal = document.getElementById('loc-modal');
+  var elLocModalTitle = document.getElementById('loc-modal-title');
+  var elLocModalClose = document.getElementById('loc-modal-close');
+  var elLocSearch = document.getElementById('loc-search');
+  var elLocResults = document.getElementById('loc-results');
+  var elLocClearBtn = document.getElementById('loc-clear-btn');
+  var locModalType = null;
+
+  function loadHomeWork() {
+    try { homeStationId = localStorage.getItem(HOME_KEY) || null; } catch (e) { homeStationId = null; }
+    try { workStationId = localStorage.getItem(WORK_KEY) || null; } catch (e) { workStationId = null; }
+    updateLocIconState();
+  }
+
+  function updateLocIconState() {
+    elSetHomeBtn.classList.toggle('is-set', !!homeStationId);
+    elSetWorkBtn.classList.toggle('is-set', !!workStationId);
+  }
+
+  function makeLocRowIcon(type) {
+    var span = document.createElement('span');
+    span.className = 'row-loc-icon';
+    span.setAttribute('aria-label', type === 'home' ? 'Home station' : 'Work station');
+    span.title = type === 'home' ? 'Home station' : 'Work station';
+    if (type === 'home') {
+      span.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>';
+    } else {
+      span.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+    }
+    return span;
+  }
+
+  function openLocModal(type) {
+    locModalType = type;
+    elLocModalTitle.textContent = type === 'home' ? 'Set home station' : 'Set work station';
+    var currentId = type === 'home' ? homeStationId : workStationId;
+    elLocClearBtn.style.display = currentId ? 'block' : 'none';
+    elLocSearch.value = '';
+    elLocResults.innerHTML = '';
+    elLocModal.style.display = 'flex';
+    setTimeout(function() { elLocSearch.focus(); }, 50);
+  }
+
+  function closeLocModal() {
+    elLocModal.style.display = 'none';
+    locModalType = null;
+  }
+
+  function runLocSearch(q) {
+    q = q.trim().toLowerCase();
+    elLocResults.innerHTML = '';
+    if (!q) return;
+
+    var matches = [];
+    for (var id in stationsById) {
+      if (stationsById[id].name.toLowerCase().indexOf(q) !== -1) matches.push(stationsById[id]);
+      if (matches.length >= 20) break;
+    }
+
+    if (matches.length === 0) {
+      elLocResults.innerHTML = '<div class="loc-empty">No stations match that search.</div>';
+      return;
+    }
+
+    matches.forEach(function(s) {
+      var item = document.createElement('div');
+      item.className = 'loc-result-item';
+      item.textContent = s.name;
+      item.addEventListener('click', function() {
+        if (locModalType === 'home') {
+          homeStationId = s.id;
+          try { localStorage.setItem(HOME_KEY, s.id); } catch (e) {}
+        } else if (locModalType === 'work') {
+          workStationId = s.id;
+          try { localStorage.setItem(WORK_KEY, s.id); } catch (e) {}
+        }
+        updateLocIconState();
+        closeLocModal();
+        render();
+      });
+      elLocResults.appendChild(item);
+    });
+  }
+
+  elSetHomeBtn.addEventListener('click', function() { openLocModal('home'); });
+  elSetWorkBtn.addEventListener('click', function() { openLocModal('work'); });
+  elLocModalClose.addEventListener('click', closeLocModal);
+  elLocModal.addEventListener('click', function(e) { if (e.target === elLocModal) closeLocModal(); });
+  elLocSearch.addEventListener('input', function() { runLocSearch(elLocSearch.value); });
+  elLocClearBtn.addEventListener('click', function() {
+    if (locModalType === 'home') {
+      homeStationId = null;
+      try { localStorage.removeItem(HOME_KEY); } catch (e) {}
+    } else if (locModalType === 'work') {
+      workStationId = null;
+      try { localStorage.removeItem(WORK_KEY); } catch (e) {}
+    }
+    updateLocIconState();
+    closeLocModal();
+    render();
+  });
 
   function showBanner(msg, timeoutMs) {
     elBannerText.textContent = msg;
@@ -594,6 +831,9 @@
     }
     row.appendChild(name);
 
+    if (station.id === homeStationId) row.appendChild(makeLocRowIcon('home'));
+    if (station.id === workStationId) row.appendChild(makeLocRowIcon('work'));
+
     if (showDirections) {
       var dirBtn = document.createElement('a');
       dirBtn.className = 'dir-btn';
@@ -619,15 +859,12 @@
   }
 
   function render() {
-    elColumns.innerHTML =
-      '<div class="col-head">Nearest</div>' +
-      '<div class="col-head ebike-col">Nearest w/ e-bike</div>';
+    var colA = document.getElementById('colA');
+    var colB = document.getElementById('colB');
 
     if (!userLoc) {
-      var empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.textContent = 'Tap "Refresh my location" above to find your nearest stations.';
-      elColumns.appendChild(empty);
+      colA.innerHTML = '<div class="empty">Tap "Refresh my location" above to find your nearest stations.</div>';
+      colB.innerHTML = '';
       elBottomBand.innerHTML = '';
       return;
     }
@@ -642,8 +879,8 @@
       return typeof s.ebikes === 'number' && s.ebikes > 0;
     }).slice(0, 8);
 
-    var colA = document.createElement('div');
-    var colB = document.createElement('div');
+    colA.innerHTML = '';
+    colB.innerHTML = '';
 
     if (nearest8.length === 0) {
       colA.innerHTML = '<div class="empty">No data</div>';
@@ -659,9 +896,6 @@
     } else {
       nearestWithEbikes8.forEach(function(s) { colB.appendChild(statRow(s, true)); });
     }
-
-    elColumns.appendChild(colA);
-    elColumns.appendChild(colB);
 
     renderDockBand(byDistance);
   }
@@ -719,6 +953,7 @@
 
   async function init() {
     loadLocation();
+    loadHomeWork();
     await loadStationInfo();
     render();
     await refreshStatus();
