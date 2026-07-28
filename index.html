@@ -856,16 +856,7 @@
     return 'Notifications are blocked for this site. Check your browser\'s notification settings to allow them.';
   }
 
-  function isMobileSafari() {
-    var ua = navigator.userAgent || '';
-    return /iphone|ipad|ipod/i.test(ua) && !notificationsSupported();
-  }
-
   function updateEnableNotifyBtn() {
-    if (isMobileSafari()) {
-      elEnableNotifyBtn.style.display = 'flex';
-      return;
-    }
     if (!notificationsSupported() || Notification.permission === 'granted') {
       elEnableNotifyBtn.style.display = 'none';
     } else {
@@ -874,10 +865,6 @@
   }
 
   elEnableNotifyBtn.addEventListener('click', function() {
-    if (isMobileSafari()) {
-      showBanner('Add this to your Home Screen first (tap Share, then "Add to Home Screen"), then open it from there to turn on notifications.', 9000);
-      return;
-    }
     if (!notificationsSupported()) return;
     if (Notification.permission === 'denied') {
       showBanner(deniedNotificationInstructions(), 9000);
@@ -897,7 +884,12 @@
 
   function openNotifyModal() {
     if (!notificationsSupported()) {
-      showBanner('Notifications aren\'t supported in this browser.', 4000);
+      var ua = navigator.userAgent || '';
+      if (/iphone|ipad|ipod/i.test(ua)) {
+        showBanner('Add this to your Home Screen first (tap Share, then "Add to Home Screen"), then open it from there to turn on notifications.', 9000);
+      } else {
+        showBanner('Notifications aren\'t supported in this browser.', 4000);
+      }
       return;
     }
     expireStaleNotifyWatch();
