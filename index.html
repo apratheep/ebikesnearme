@@ -85,7 +85,16 @@
   @media (min-width: 480px) {
     #board-root .title { font-size: 18px; letter-spacing: 0.04em; }
   }
-  #board-root .clock { font-size: 12px; color: var(--board-green-dark); opacity: 0.7; }
+  #board-root .add-home-btn {
+    background: none;
+    border: none;
+    color: var(--board-green-dark);
+    opacity: 0.55;
+    padding: 2px;
+    display: flex;
+    cursor: pointer;
+  }
+  #board-root .add-home-btn:active { opacity: 0.85; }
   #board-root .sub { font-size: 12px; color: var(--board-green-dark); opacity: 0.8; margin-bottom: 14px; font-weight: 500; }
   #board-root .nearest-btn {
     width: 100%;
@@ -465,7 +474,9 @@
   <div class="top-band">
     <div class="head-row">
       <span class="title">Bike share TO — e-bikes</span>
-      <span class="clock mono" id="clock">--:--:--</span>
+      <button type="button" id="add-home-btn" class="add-home-btn" aria-label="Add to Home Screen" title="Add to Home Screen">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg>
+      </button>
     </div>
     <div class="sub">8 nearest stations, split by e-bike availability.</div>
 
@@ -530,11 +541,12 @@
   var lastStatusFetch = 0;
 
   var elColumns = document.getElementById('columns');
-  var elClock = document.getElementById('clock');
   var elStatusDot = document.getElementById('status-dot');
   var elStatusText = document.getElementById('status-text');
   var elUpdatedText = document.getElementById('updated-text');
   var elNearestBtn = document.getElementById('nearest-btn');
+  var elAddHomeBtn = document.getElementById('add-home-btn');
+  var deferredInstallPrompt = null;
   var elBottomBand = document.getElementById('bottom-band');
   var elBanner = document.getElementById('banner');
   var elBannerText = document.getElementById('banner-text');
@@ -664,7 +676,37 @@
 
   elBannerClose.addEventListener('click', hideBanner);
 
-  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function isStandalone() {
+    return window.navigator.standalone === true ||
+      window.matchMedia('(display-mode: standalone)').matches;
+  }
+
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+  });
+
+  window.addEventListener('appinstalled', function() {
+    elAddHomeBtn.style.display = 'none';
+  });
+
+  if (isStandalone()) {
+    elAddHomeBtn.style.display = 'none';
+  } else {
+    elAddHomeBtn.addEventListener('click', function() {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt = null;
+        return;
+      }
+      var ua = navigator.userAgent || '';
+      if (/iphone|ipad|ipod/i.test(ua)) {
+        showBanner('Tap the Share icon below, then "Add to Home Screen".', 7000);
+      } else {
+        showBanner('Open your browser menu and choose "Add to Home Screen" or "Install app".', 7000);
+      }
+    });
+  }
 
   function distanceKm(lat1, lon1, lat2, lon2) {
     var R = 6371;
@@ -712,8 +754,6 @@
   }
 
   function tickClock() {
-    var d = new Date();
-    elClock.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
     if (lastStatusFetch) {
       var secs = Math.round((Date.now() - lastStatusFetch) / 1000);
       elUpdatedText.textContent = 'updated ' + secs + 's ago';
