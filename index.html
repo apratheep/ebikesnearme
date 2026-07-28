@@ -1323,39 +1323,6 @@
     renderDockBand(byDistance);
   }
 
-  function nearestOpenDockStation() {
-    var byDistance = sortedByDistance();
-    for (var i = 0; i < byDistance.length; i++) {
-      if (typeof byDistance[i].docks === 'number' && byDistance[i].docks > 0) return byDistance[i];
-    }
-    return null;
-  }
-
-  function onDockBikeTap(e, link) {
-    e.preventDefault();
-    var fallbackUrl = link.href;
-
-    var locPromise = new Promise(function(resolve) {
-      if (!navigator.geolocation) { resolve(null); return; }
-      navigator.geolocation.getCurrentPosition(function(pos) {
-        resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-      }, function() { resolve(null); }, { enableHighAccuracy: true, timeout: 4000, maximumAge: 0 });
-    });
-
-    var statusPromise = refreshStatus().catch(function() {});
-
-    Promise.all([locPromise, statusPromise]).then(function(results) {
-      var freshLoc = results[0];
-      if (freshLoc) {
-        userLoc = freshLoc;
-        saveLocation();
-      }
-      var freshTarget = nearestOpenDockStation();
-      window.location.href = freshTarget ? directionsUrl(freshTarget) : fallbackUrl;
-      render();
-    });
-  }
-
   function renderDockBand(byDistance) {
     var target = null;
     for (var i = 0; i < byDistance.length; i++) {
@@ -1375,8 +1342,9 @@
     var link = document.createElement('a');
     link.className = 'dock-link';
     link.href = directionsUrl(target);
+    link.target = '_blank';
+    link.rel = 'noopener';
     link.setAttribute('aria-label', 'Navigate to nearest open dock at ' + target.name);
-    link.addEventListener('click', function(e) { onDockBikeTap(e, link); });
 
     var row = document.createElement('div');
     row.className = 'dock-row';
