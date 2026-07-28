@@ -131,12 +131,26 @@
     gap: 6px;
   }
   #board-root .loc-icon-btn {
+    position: relative;
     background: none;
     border: none;
     color: var(--board-text-dim);
     padding: 2px;
     display: flex;
     cursor: pointer;
+  }
+  #board-root .loc-badge {
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--board-amber);
+    display: block;
+  }
+  #board-root .loc-icon-btn.is-set .loc-badge {
+    display: none;
   }
   #board-root .loc-icon-btn .icon-filled {
     display: block;
@@ -468,10 +482,12 @@
           <button type="button" class="loc-icon-btn" id="set-home-btn" aria-label="Set home station">
             <svg class="icon-filled" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 3.2l9 7.8h-2.2v9.5h-4.8v-6.2h-4v6.2H4.2v-9.5H2z"/></svg>
             <svg class="icon-outline" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+            <span class="loc-badge"></span>
           </button>
           <button type="button" class="loc-icon-btn" id="set-work-btn" aria-label="Set work station">
             <svg class="icon-filled" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 3.2a2 2 0 0 0-2 2v1H4.2a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h15.6a2 2 0 0 0 2-2v-10a2 2 0 0 0-2-2H17v-1a2 2 0 0 0-2-2H9zm0 2h6v1H9v-1zM2.2 12h19.6v-1.8H2.2V12z"/></svg>
             <svg class="icon-outline" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <span class="loc-badge"></span>
           </button>
         </span>
       </div>
