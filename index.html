@@ -75,6 +75,11 @@
     justify-content: space-between;
     margin-bottom: 2px;
   }
+  #board-root .head-icons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
   #board-root .title {
     font-size: 16px;
     letter-spacing: 0.03em;
@@ -97,6 +102,28 @@
     cursor: pointer;
   }
   #board-root .add-home-btn:active { opacity: 1; }
+  #board-root .enable-notify-btn {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    border: 1.5px solid currentColor;
+    border-radius: 50%;
+    padding: 0;
+  }
+  #board-root .enable-notify-btn svg {
+    position: relative;
+    z-index: 1;
+  }
+  #board-root .enable-notify-dot {
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--board-green-dark);
+    z-index: 0;
+  }
   #board-root .sub { font-size: 12px; color: var(--board-green-dark); opacity: 0.82; margin-bottom: 14px; font-weight: 500; }
   #board-root .nearest-btn {
     width: 100%;
@@ -519,9 +546,15 @@
   <div class="top-band">
     <div class="head-row">
       <span class="title">Bike share TO — e-bikes</span>
-      <button type="button" id="add-home-btn" class="add-home-btn" aria-label="Add to Home Screen" title="Add to Home Screen">
-        <svg viewBox="0 0 32 24" width="30" height="23"><rect x="18" y="2" width="12" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="19.5" y="4" width="4" height="4" rx="1" fill="currentColor" opacity="0.85"/><rect x="24.5" y="4" width="4" height="4" rx="1" fill="currentColor" opacity="0.85"/><rect x="19.5" y="9" width="4" height="4" rx="1" fill="currentColor" opacity="0.85"/><rect x="24.5" y="9" width="4" height="4" rx="1" fill="currentColor" opacity="0.85"/><rect x="19.5" y="14" width="4" height="4" rx="1" fill="currentColor" opacity="0.85"/><rect x="24.5" y="14" width="4" height="4" rx="1" fill="currentColor" opacity="0.85"/><rect x="22" y="19" width="4" height="1.2" rx="0.6" fill="currentColor"/><path d="M2,10 L12,10 L12,6 L18,12 L12,18 L12,14 L2,14 Z" fill="currentColor"/></svg>
-      </button>
+      <span class="head-icons">
+        <button type="button" id="enable-notify-btn" class="add-home-btn enable-notify-btn" aria-label="Enable notifications" title="Enable notifications" style="display:none;">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10a6 6 0 0 1 12 0v3.5l1.5 2.5h-15l1.5-2.5V10z"/><path d="M9.5 18.5a2.5 2.5 0 0 0 5 0"/></svg>
+          <span class="enable-notify-dot"></span>
+        </button>
+        <button type="button" id="add-home-btn" class="add-home-btn" aria-label="Add to Home Screen" title="Add to Home Screen">
+          <svg viewBox="0 0 32 24" width="30" height="23"><rect x="18" y="2" width="12" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="19.5" y="4" width="4" height="4" rx="1" fill="currentColor" opacity="0.85"/><rect x="24.5" y="4" width="4" height="4" rx="1" fill="currentColor" opacity="0.85"/><rect x="19.5" y="9" width="4" height="4" rx="1" fill="currentColor" opacity="0.85"/><rect x="24.5" y="9" width="4" height="4" rx="1" fill="currentColor" opacity="0.85"/><rect x="19.5" y="14" width="4" height="4" rx="1" fill="currentColor" opacity="0.85"/><rect x="24.5" y="14" width="4" height="4" rx="1" fill="currentColor" opacity="0.85"/><rect x="22" y="19" width="4" height="1.2" rx="0.6" fill="currentColor"/><path d="M2,10 L12,10 L12,6 L18,12 L12,18 L12,14 L2,14 Z" fill="currentColor"/></svg>
+        </button>
+      </span>
     </div>
     <div class="sub">Find the nearest stations w/ e-bike availability.</div>
 
@@ -610,6 +643,7 @@
   var elUpdatedText = document.getElementById('updated-text');
   var elNearestBtn = document.getElementById('nearest-btn');
   var elAddHomeBtn = document.getElementById('add-home-btn');
+  var elEnableNotifyBtn = document.getElementById('enable-notify-btn');
   var deferredInstallPrompt = null;
   var elBottomBand = document.getElementById('bottom-band');
   var elBanner = document.getElementById('banner');
@@ -806,6 +840,48 @@
     return typeof Notification !== 'undefined';
   }
 
+  function deniedNotificationInstructions() {
+    var ua = navigator.userAgent || '';
+    var isIOS = /iphone|ipad|ipod/i.test(ua);
+
+    if (isIOS && isStandalone()) {
+      return 'Notifications are blocked. Enable them: Settings → Notifications → Bike share TO → Allow Notifications.';
+    }
+    if (isIOS) {
+      return 'Notifications are blocked. In Safari, tap the "aA" icon in the address bar → Website Settings → Notifications → Allow.';
+    }
+    if (/android/i.test(ua)) {
+      return 'Notifications are blocked. Open your browser\'s site settings for this page and allow notifications.';
+    }
+    return 'Notifications are blocked for this site. Check your browser\'s notification settings to allow them.';
+  }
+
+  function updateEnableNotifyBtn() {
+    if (!notificationsSupported() || Notification.permission === 'granted') {
+      elEnableNotifyBtn.style.display = 'none';
+    } else {
+      elEnableNotifyBtn.style.display = 'flex';
+    }
+  }
+
+  elEnableNotifyBtn.addEventListener('click', function() {
+    if (!notificationsSupported()) return;
+    if (Notification.permission === 'denied') {
+      showBanner(deniedNotificationInstructions(), 9000);
+      return;
+    }
+    Notification.requestPermission().then(function(perm) {
+      updateEnableNotifyBtn();
+      if (perm === 'granted') {
+        showBanner('Notifications enabled.', 3000);
+      } else {
+        showBanner('Notifications need to be allowed to send alerts.', 4000);
+      }
+    });
+  });
+
+  updateEnableNotifyBtn();
+
   function openNotifyModal() {
     if (!notificationsSupported()) {
       showBanner('Notifications aren\'t supported in this browser.', 4000);
@@ -875,10 +951,11 @@
     }
     if (Notification.permission === 'denied') {
       closeNotifyModal();
-      showBanner('Notifications are blocked for this site in your device settings.', 4000);
+      showBanner(deniedNotificationInstructions(), 9000);
       return;
     }
     Notification.requestPermission().then(function(perm) {
+      updateEnableNotifyBtn();
       if (perm === 'granted') {
         startNotifyWatch(minutes);
         announceImmediateAvailability(nearestWatchIds());
