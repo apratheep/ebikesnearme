@@ -11,7 +11,7 @@
 <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="E-bikes">
-<title>Bike share T.O. — e-bikes</title>
+<title>Bike share TO — e-bikes</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; background: #2b3140; }
@@ -87,11 +87,16 @@
   }
   #board-root .add-home-btn {
     background: none;
-    border: none;
+    border: 1.5px solid currentColor;
+    border-radius: 7px;
     color: var(--board-green-dark);
     opacity: 0.85;
-    padding: 2px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
     display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
   }
   #board-root .add-home-btn:active { opacity: 1; }
@@ -475,10 +480,10 @@
     <div class="head-row">
       <span class="title">Bike share TO — e-bikes</span>
       <button type="button" id="add-home-btn" class="add-home-btn" aria-label="Add to Home Screen" title="Add to Home Screen">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="17.5" r="3.5"/><circle cx="18" cy="17.5" r="3.5"/><circle cx="14" cy="5.5" r="1.4"/><path d="M9 17.5l4-8 4 3h-2"/><path d="M6 17.5l4.5-6.5 3.5 0"/></svg>
       </button>
     </div>
-    <div class="sub">Find the nearest stations to you w/ e-bike availability.</div>
+    <div class="sub">Find the nearest stations w/ e-bike availability.</div>
 
     <button id="nearest-btn" type="button" class="nearest-btn">
     <svg viewBox="0 0 24 24" width="16" height="16" fill="var(--board-amber)" style="vertical-align:-3px;margin-right:5px;"><path d="M12 2C7.58 2 4 5.58 4 10c0 5.25 7 12 8 12s8-6.75 8-12c0-4.42-3.58-8-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>Refresh my location
