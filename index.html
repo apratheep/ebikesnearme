@@ -1079,6 +1079,7 @@
       saveLocation();
       elNearestBtn.innerHTML = originalLabel;
       elNearestBtn.disabled = false;
+      startBackgroundLocationWatch();
       render();
       if (cb) cb();
     }, function(err) {
@@ -1086,6 +1087,20 @@
       elNearestBtn.disabled = false;
       showBanner('Couldn\'t get your location. Check Safari\'s location permission for this site and try again.', 8000);
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+  }
+
+  var backgroundWatchId = null;
+
+  function startBackgroundLocationWatch() {
+    if (backgroundWatchId !== null || !navigator.geolocation) return;
+    backgroundWatchId = navigator.geolocation.watchPosition(function(pos) {
+      // Keep location quietly up to date in the background so a DOCK BIKE
+      // tap can navigate instantly without waiting on a fresh GPS fix.
+      userLoc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      saveLocation();
+    }, function() {
+      // Ignore watch errors silently — we still have the last known fix.
+    }, { enableHighAccuracy: false, maximumAge: 10000, timeout: 15000 });
   }
 
   function tickClock() {
@@ -1342,8 +1357,6 @@
     var link = document.createElement('a');
     link.className = 'dock-link';
     link.href = directionsUrl(target);
-    link.target = '_blank';
-    link.rel = 'noopener';
     link.setAttribute('aria-label', 'Navigate to nearest open dock at ' + target.name);
 
     var row = document.createElement('div');
@@ -1380,7 +1393,11 @@
     await loadStationInfo();
     render();
     await refreshStatus();
-    if (!userLoc) useMyLocation();
+    if (!userLoc) {
+      useMyLocation();
+    } else {
+      startBackgroundLocationWatch();
+    }
     setInterval(refreshStatus, 25000);
     setInterval(tickClock, 1000);
     tickClock();
