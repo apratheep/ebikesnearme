@@ -1,0 +1,19 @@
+{
+  "name": "ebike-push-server",
+  "version": "1.0.0",
+  "description": "Polls Bike Share Toronto GBFS feed and sends Web Push notifications on e-bike availability changes.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "generate-vapid-keys": "web-push generate-vapid-keys"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "web-push": "^3.6.7"
+  }
+}
