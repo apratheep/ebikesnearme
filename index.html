@@ -663,6 +663,16 @@
   var notifyWatch = null;
   var pendingNotifyDuration = DEFAULT_NOTIFY_DURATION;
 
+  // --- Web Push config -------------------------------------------------
+  // Fill these in once the backend from /server is deployed:
+  //   PUSH_SERVER_URL   -> e.g. 'https://your-app.onrender.com'
+  //   VAPID_PUBLIC_KEY  -> the "public key" printed by `npx web-push generate-vapid-keys`
+  // Until both are set, the app falls back to foreground-only notifications
+  // (identical to the previous behaviour) and background push is simply skipped.
+  var PUSH_SERVER_URL = '';
+  var VAPID_PUBLIC_KEY = '';
+  var pushSubscription = null;
+
   var elSetHomeBtn = document.getElementById('set-home-btn');
   var elSetWorkBtn = document.getElementById('set-work-btn');
   var elSetNotifyBtn = document.getElementById('set-notify-btn');
@@ -722,6 +732,7 @@
     if (notifyWatch && Date.now() >= notifyWatch.expiresAt) {
       notifyWatch = null;
       try { localStorage.removeItem(NOTIFY_KEY); } catch (e) {}
+      unsubscribeFromPush();
       return true;
     }
     return false;
@@ -840,6 +851,82 @@
     return typeof Notification !== 'undefined';
   }
 
+  function pushSupported() {
+    return 'serviceWorker' in navigator && 'PushManager' in window &&
+      !!PUSH_SERVER_URL && !!VAPID_PUBLIC_KEY;
+  }
+
+  var swRegistration = null;
+
+  function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.register('./sw.js').then(function(reg) {
+      swRegistration = reg;
+      // Reconnect to an existing push subscription (e.g. after a reload)
+      // so the UI/backend can stay in sync with what's actually active.
+      reg.pushManager.getSubscription().then(function(sub) {
+        pushSubscription = sub;
+      });
+    }).catch(function() {
+      // Service worker failed to register (unsupported browser, non-HTTPS
+      // origin, etc). Foreground notifications still work without it.
+    });
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - base64String.length % 4) % 4);
+    var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var rawData = atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+    for (var i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  // Subscribes this device for background push and registers it with the
+  // backend, telling it which location to watch stations from and when the
+  // watch should stop. Safe to call even if push isn't configured/supported
+  // — it just no-ops and the existing foreground-only path keeps working.
+  function subscribeToPush(expiresAt) {
+    if (!pushSupported() || !swRegistration || !userLoc) return Promise.resolve();
+    return swRegistration.pushManager.getSubscription().then(function(existing) {
+      var subPromise = existing ? Promise.resolve(existing) : swRegistration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+      return subPromise.then(function(sub) {
+        pushSubscription = sub;
+        return fetch(PUSH_SERVER_URL + '/api/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscription: sub.toJSON(),
+            lat: userLoc.lat,
+            lon: userLoc.lon,
+            watchCount: NEAREST_WATCH_COUNT,
+            expiresAt: expiresAt
+          })
+        });
+      });
+    }).catch(function() {
+      // Push registration failed (offline, blocked, server unreachable) —
+      // the local 25s poll loop below still covers the foreground case.
+    });
+  }
+
+  function unsubscribeFromPush() {
+    if (!pushSubscription) return Promise.resolve();
+    var endpoint = pushSubscription.endpoint;
+    return pushSubscription.unsubscribe().catch(function() {}).then(function() {
+      pushSubscription = null;
+      if (!PUSH_SERVER_URL) return;
+      return fetch(PUSH_SERVER_URL + '/api/unsubscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: endpoint })
+      }).catch(function() {});
+    });
+  }
+
   function deniedNotificationInstructions() {
     var ua = navigator.userAgent || '';
     var isIOS = /iphone|ipad|ipod/i.test(ua);
@@ -927,15 +1014,18 @@
       showBanner('Set your location first so we know your nearest stations.', 4000);
       return;
     }
-    notifyWatch = { minutes: minutes, expiresAt: Date.now() + minutes * 60000 };
+    var expiresAt = Date.now() + minutes * 60000;
+    notifyWatch = { minutes: minutes, expiresAt: expiresAt };
     saveNotifyState();
     renderNotifyModal();
+    subscribeToPush(expiresAt);
   }
 
   function stopNotifyWatch() {
     notifyWatch = null;
     saveNotifyState();
     renderNotifyModal();
+    unsubscribeFromPush();
   }
 
   function selectPendingDuration(minutes) {
@@ -1395,6 +1485,7 @@
   elNearestBtn.addEventListener('click', function() { useMyLocation(); });
 
   async function init() {
+    registerServiceWorker();
     loadLocation();
     loadHomeWork();
     await loadStationInfo();
@@ -1404,6 +1495,9 @@
       useMyLocation();
     } else {
       startBackgroundLocationWatch();
+    }
+    if (notifyWatch && !expireStaleNotifyWatch() && notificationsSupported() && Notification.permission === 'granted') {
+      subscribeToPush(notifyWatch.expiresAt);
     }
     setInterval(refreshStatus, 25000);
     setInterval(tickClock, 1000);
