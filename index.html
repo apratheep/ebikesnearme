@@ -617,7 +617,7 @@
       <span>Notify me about e-bikes</span>
       <button type="button" id="notify-modal-close" aria-label="Close">×</button>
     </div>
-    <div id="notify-hint" class="notify-hint">We'll watch your 4 nearest stations and notify you the moment one has an e-bike.</div>
+    <div id="notify-hint" class="notify-hint">We'll watch your 4 nearest stations and notify you when one gains an e-bike or runs out.</div>
     <div class="notify-duration-label">Watch for the next…</div>
     <div id="notify-duration-row" class="notify-duration-row"></div>
     <button type="button" id="notify-start-btn" class="notify-done-btn">Start watching</button>
@@ -759,7 +759,7 @@
     var span = document.createElement('span');
     span.className = 'row-loc-icon';
     var mins = notifyMinutesLeft();
-    var label = mins ? ('Watching for e-bikes — ' + mins + ' min left') : 'Watching for e-bikes';
+    var label = mins ? ('Watching for e-bike changes — ' + mins + ' min left') : 'Watching for e-bike changes';
     span.setAttribute('aria-label', label);
     span.title = label;
     span.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10a6 6 0 0 1 12 0v3.5l1.5 2.5h-15l1.5-2.5V10z"/><path d="M9.5 18.5a2.5 2.5 0 0 0 5 0"/></svg>';
@@ -975,7 +975,7 @@
     var mins = notifyMinutesLeft();
     elNotifyHint.textContent = notifyWatch
       ? ('Watching your ' + NEAREST_WATCH_COUNT + ' nearest stations — ' + mins + ' min left.')
-      : ('We\'ll watch your ' + NEAREST_WATCH_COUNT + ' nearest stations and notify you the moment one has an e-bike.');
+      : ('We\'ll watch your ' + NEAREST_WATCH_COUNT + ' nearest stations and notify you when one gains an e-bike or runs out.');
 
     elNotifyDurationRow.innerHTML = '';
     var activeDuration = notifyWatch ? notifyWatch.minutes : pendingNotifyDuration;
@@ -1189,7 +1189,14 @@
       try {
         new Notification('E-bike available', {
           body: st.name + ' now has ' + st.ebikes + ' e-bike' + (st.ebikes === 1 ? '' : 's') + ' available.',
-          tag: 'ebike-' + st.id
+          tag: 'ebike-available-' + st.id
+        });
+      } catch (e) {}
+    } else if (prevEbikes !== null && prevEbikes > 0 && st.ebikes === 0) {
+      try {
+        new Notification('E-bikes gone', {
+          body: st.name + ' is out of e-bikes.',
+          tag: 'ebike-empty-' + st.id
         });
       } catch (e) {}
     }
